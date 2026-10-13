@@ -1,8 +1,8 @@
 #!/bin/sh
 # shellcheck shell=dash
 
-REPO="https://api.github.com/repos/itdoginfo/podkop/releases/latest"
-DOWNLOAD_DIR="/tmp/podkop"
+REPO="https://api.github.com/repos/itdoginfo/perekop/releases/latest"
+DOWNLOAD_DIR="/tmp/perekop"
 COUNT=3
 
 # Cached flag to switch between ipk or apk package managers
@@ -63,20 +63,20 @@ pkg_install() {
 
 update_config() {
     printf "\033[48;5;196m\033[1m╔══════════════════════════════════════════════════════════════════════╗\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ ! Обнаружена старая версия podkop.                                   ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ Если продолжите обновление, вам потребуется настроить Podkop заново. ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ Старая конфигурация будет сохранена в /etc/config/podkop-070         ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ Подробности: https://github.com/itdoginfo/podkop                     ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ ! Обнаружена старая версия perekop.                                   ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ Если продолжите обновление, вам потребуется настроить Perekop заново. ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ Старая конфигурация будет сохранена в /etc/config/perekop-070         ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ Подробности: https://github.com/itdoginfo/perekop                     ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ Точно хотите продолжить?                                             ║\033[0m\n"
     printf "\033[48;5;196m\033[1m╚══════════════════════════════════════════════════════════════════════╝\033[0m\n"
 
     echo ""
 
     printf "\033[48;5;196m\033[1m╔══════════════════════════════════════════════════════════════════════╗\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ ! Detected old podkop version.                                       ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ If you continue the update, you will need to RECONFIGURE podkop.     ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ Your old configuration will be saved to /etc/config/podkop-070       ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ Details: https://github.com/itdoginfo/podkop                         ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ ! Detected old perekop version.                                       ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ If you continue the update, you will need to RECONFIGURE perekop.     ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ Your old configuration will be saved to /etc/config/perekop-070       ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ Details: https://github.com/itdoginfo/perekop                         ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ Are you sure you want to continue?                                   ║\033[0m\n"
     printf "\033[48;5;196m\033[1m╚══════════════════════════════════════════════════════════════════════╝\033[0m\n"
 
@@ -87,9 +87,9 @@ update_config() {
             case $CONFIG_UPDATE in
 
             yes|y|Y)
-                mv /etc/config/podkop /etc/config/podkop-070
-                wget -O /etc/config/podkop https://raw.githubusercontent.com/itdoginfo/podkop/refs/heads/main/podkop/files/etc/config/podkop
-                msg "Podkop config has been reset to default. Your old config saved in /etc/config/podkop-070"
+                mv /etc/config/perekop /etc/config/perekop-070
+                wget -O /etc/config/perekop https://raw.githubusercontent.com/itdoginfo/perekop/refs/heads/main/perekop/files/etc/config/perekop
+                msg "Perekop config has been reset to default. Your old config saved in /etc/config/perekop-070"
                 break
                 ;;
             *)
@@ -108,14 +108,14 @@ main() {
 
     pkg_list_update || { echo "Packages list update failed"; exit 1; }
 
-    if [ -f "/etc/init.d/podkop" ]; then
-        msg "Podkop is already installed. Upgrading..."
+    if [ -f "/etc/init.d/perekop" ]; then
+        msg "Perekop is already installed. Upgrading..."
     else
-        msg "Installing podkop..."
+        msg "Installing perekop..."
     fi
 
     if command -v curl >/dev/null 2>&1; then
-        check_response=$(curl -s "https://api.github.com/repos/itdoginfo/podkop/releases/latest")
+        check_response=$(curl -s "https://api.github.com/repos/itdoginfo/perekop/releases/latest")
 
         if echo "$check_response" | grep -q 'API rate limit '; then
             msg "You've reached the GitHub rate limit. Repeat in five minutes."
@@ -154,12 +154,12 @@ main() {
     done
 
     # Check if any files were downloaded
-    if ! ls "$DOWNLOAD_DIR"/*podkop* >/dev/null 2>&1; then
+    if ! ls "$DOWNLOAD_DIR"/*perekop* >/dev/null 2>&1; then
         msg "No packages were downloaded successfully"
         exit 1
     fi
 
-    for pkg in podkop luci-app-podkop; do
+    for pkg in perekop luci-app-perekop; do
         file=""
         for f in "$DOWNLOAD_DIR"/"$pkg"*; do
             if [ -f "$f" ]; then
@@ -175,16 +175,16 @@ main() {
     done
 
     ru=""
-    for f in "$DOWNLOAD_DIR"/luci-i18n-podkop-ru*; do
+    for f in "$DOWNLOAD_DIR"/luci-i18n-perekop-ru*; do
         if [ -f "$f" ]; then
             ru=$(basename "$f")
             break
         fi
     done
     if [ -n "$ru" ]; then
-        if pkg_is_installed luci-i18n-podkop-ru; then
+        if pkg_is_installed luci-i18n-perekop-ru; then
                 msg "Upgrading Russian translation..."
-                pkg_remove luci-i18n-podkop*
+                pkg_remove luci-i18n-perekop*
                 pkg_install "$DOWNLOAD_DIR/$ru"
         else
             msg "Русский язык интерфейса ставим? y/n (Install the Russian interface language?)"
@@ -192,7 +192,7 @@ main() {
                 read -r -p '' RUS
                 case $RUS in
                 y)
-                    pkg_remove luci-i18n-podkop*
+                    pkg_remove luci-i18n-perekop*
                     pkg_install "$DOWNLOAD_DIR/$ru"
                     break
                     ;;
@@ -207,7 +207,7 @@ main() {
         fi
     fi
 
-    find "$DOWNLOAD_DIR" -type f -name '*podkop*' -exec rm {} \;
+    find "$DOWNLOAD_DIR" -type f -name '*perekop*' -exec rm {} \;
 }
 
 check_system() {
@@ -218,9 +218,9 @@ check_system() {
     # Check OpenWrt version
     openwrt_version=$(cat /etc/openwrt_release | grep DISTRIB_RELEASE | cut -d"'" -f2 | cut -d'.' -f1)
     if [ "$openwrt_version" = "23" ]; then
-        msg "OpenWrt 23.05 не поддерживается начиная с podkop 0.5.0"
-        msg "Для OpenWrt 23.05 используйте podkop версии 0.4.11 или устанавливайте зависимости и podkop вручную"
-        msg "Подробности: https://podkop.net/docs/install/#%d1%83%d1%81%d1%82%d0%b0%d0%bd%d0%be%d0%b2%d0%ba%d0%b0-%d0%bd%d0%b0-2305"
+        msg "OpenWrt 23.05 не поддерживается начиная с perekop 0.5.0"
+        msg "Для OpenWrt 23.05 используйте perekop версии 0.4.11 или устанавливайте зависимости и perekop вручную"
+        msg "Подробности: https://perekop.net/docs/install/#%d1%83%d1%81%d1%82%d0%b0%d0%bd%d0%be%d0%b2%d0%ba%d0%b0-%d0%bd%d0%b0-2305"
         exit 1
     fi
 
@@ -241,9 +241,9 @@ check_system() {
     fi
 
     # Check version
-    if command -v podkop > /dev/null 2>&1; then
+    if command -v perekop > /dev/null 2>&1; then
         local version
-        version=$(/usr/bin/podkop show_version 2> /dev/null)
+        version=$(/usr/bin/perekop show_version 2> /dev/null)
         if [ -n "$version" ]; then
             version=$(echo "$version" | sed 's/^v//')
             local major
@@ -257,14 +257,14 @@ check_system() {
             if [ "$major" -gt 0 ] ||
                 [ "$major" -eq 0 ] && [ "$minor" -gt 7 ] ||
                 [ "$major" -eq 0 ] && [ "$minor" -eq 7 ] && [ "$patch" -ge 0 ]; then
-                msg "Podkop version >= 0.7.0"
+                msg "Perekop version >= 0.7.0"
                 break
             else
-                msg "Podkop version < 0.7.0"
+                msg "Perekop version < 0.7.0"
                 update_config
             fi
         else
-            msg "Unknown podkop version"
+            msg "Unknown perekop version"
             update_config
         fi
     fi
@@ -302,7 +302,7 @@ sing_box() {
     if [ "$(printf '%s\n%s\n' "$sing_box_version" "$required_version" | sort -V | head -n 1)" != "$required_version" ]; then
         msg "sing-box version $sing_box_version is older than the required version $required_version."
         msg "Removing old version..."
-        service podkop stop
+        service perekop stop
         pkg_remove sing-box
     fi
 }

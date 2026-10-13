@@ -1,0 +1,28 @@
+{
+  "luci-app-perekop": {
+    "description": "Grant UCI and RPC access to LuCI app perekop",
+    "read": {
+      "file": {
+        "/etc/init.d/perekop": [
+          "exec"
+        ],
+        "/usr/bin/perekop": [
+          "exec"
+        ]
+      },
+      "ubus": {
+        "service": [
+          "list"
+        ]
+      },
+      "uci": [
+        "perekop"
+      ]
+    },
+    "write": {
+      "uci": [
+        "perekop"
+      ]
+    }
+  }
+}

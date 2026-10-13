@@ -1,0 +1,14 @@
+{
+  "admin/services/perekop": {
+    "title": "Perekop",
+    "order": 42,
+    "action": {
+      "type": "view",
+      "path": "perekop/perekop"
+    },
+    "depends": {
+			"acl": [ "luci-app-perekop" ],
+			"uci": { "perekop": true }
+		}
+  }
+}

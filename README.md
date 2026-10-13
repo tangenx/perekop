@@ -1,4 +1,4 @@
-# Podkop
+# Perekop
 
 Маршрутизация трафика для OpenWrt.
 
@@ -10,10 +10,10 @@
 # Вещи, которые необходимо знать перед установкой
 
 ### Обновления и конфигурация
-- При обновлении **обязательно** [очищайте кэш LuCI](https://podkop.net/docs/clear-browser-cache/).
+- При обновлении **обязательно** [очищайте кэш LuCI](https://perekop.net/docs/clear-browser-cache/).
 - После обновления проверяйте конфигурацию — она может изменяться между версиями.
-- При старте Podkop модифицируется конфигурация Dnsmasq.
-- Podkop изменяет конфигурацию sing-box. Если вы используете собственную конфигурацию, заранее сохраните её.
+- При старте Perekop модифицируется конфигурация Dnsmasq.
+- Perekop изменяет конфигурацию sing-box. Если вы используете собственную конфигурацию, заранее сохраните её.
 
 ### Системные требования
 - Требуется OpenWrt 24.10 или выше.
@@ -24,27 +24,27 @@
 - Dashboard доступен только при подключении по HTTP (из-за особенностей Clash API). При использовании HTTPS или домена работа может быть недоступна.
 
 ### Поддержка и диагностика
-- [Руководство по диагностике](https://podkop.net/docs/diagnostics/)
+- [Руководство по диагностике](https://perekop.net/docs/diagnostics/)
 - Актуальные изменения публикуются в [Telegram-чате](https://t.me/itdogchat/81758/420321). Пожалуйста, ознакомьтесь с закрепленными сообщениями.
 - При возникновении проблем оставляйте технически грамотный фидбэк в GitHub Issues и Telegram-чате.
 
 
 # Документация
-https://podkop.net/
+https://perekop.net/
 
-# Установка Podkop
-Полное руководство доступно в [документации](https://podkop.net/docs/install/)
+# Установка Perekop
+Полное руководство доступно в [документации](https://perekop.net/docs/install/)
 
 Для установки и обновления достаточно выполнить один скрипт:
 ```
-sh <(wget -O - https://raw.githubusercontent.com/itdoginfo/podkop/refs/heads/main/install.sh)
+sh <(wget -O - https://raw.githubusercontent.com/itdoginfo/perekop/refs/heads/main/install.sh)
 ```
 
-Часть возможностей Podkop (например, ссылки с транспортом xhttp и резервные ссылки в URLTest) работает только с альтернативной сборкой sing-box — [podkop-engine](https://github.com/FiyeroT/podkop-engine) версии r11 или новее. С обычным sing-box эти возможности недоступны, остальное работает как раньше.
+Часть возможностей Perekop (например, ссылки с транспортом xhttp и резервные ссылки в URLTest) работает только с альтернативной сборкой sing-box — [perekop-engine](https://github.com/FiyeroT/perekop-engine) версии r11 или новее. С обычным sing-box эти возможности недоступны, остальное работает как раньше.
 
-Установить podkop-engine можно из его [репозитория](https://github.com/FiyeroT/podkop-engine/releases) или альтернативным скриптом, который ставит последние версии Podkop и podkop-engine:
+Установить perekop-engine можно из его [репозитория](https://github.com/FiyeroT/perekop-engine/releases) или альтернативным скриптом, который ставит последние версии Perekop и perekop-engine:
 ```
-wget -O - https://mirror.podkop.net/urjw/scripts/bootstrap.sh | sh
+wget -O - https://mirror.perekop.net/urjw/scripts/bootstrap.sh | sh
 ```
 
 Обратите внимание: альтернативный скрипт отправляет на сервер телеметрию — модель роутера, список установленных пакетов, разметку флеш-памяти, объём оперативной памяти и статусы шагов установки. Эти данные используются для улучшения скрипта и исправления ошибок установки.
@@ -60,4 +60,4 @@ wget -O - https://mirror.podkop.net/urjw/scripts/bootstrap.sh | sh
 > 
 > Правообладатели и участники проекта не несут ответственности за любые прямые, косвенные, случайные, специальные или иные убытки, возникшие в результате использования программного обеспечения, включая потерю данных, прибыли или прерывание деятельности, даже если они были предупреждены о возможности таких последствий.
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/itdoginfo/podkop)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/itdoginfo/perekop)

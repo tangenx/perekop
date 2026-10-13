@@ -1,11 +1,11 @@
 FROM itdoginfo/openwrt-sdk-ipk:24.10.6
 
-ARG PODKOP_VERSION
+ARG PEREKOP_VERSION
 
-COPY ./podkop /builder/package/feeds/utilities/podkop
-COPY ./luci-app-podkop /builder/package/feeds/luci/luci-app-podkop
+COPY ./perekop /builder/package/feeds/utilities/perekop
+COPY ./luci-app-perekop /builder/package/feeds/luci/luci-app-perekop
 
-RUN export PODKOP_VERSION="v${PODKOP_VERSION}" && \
+RUN export PEREKOP_VERSION="v${PEREKOP_VERSION}" && \
     make defconfig && \
-    make package/podkop/compile V=s -j4 && \
-    make package/luci-app-podkop/compile V=s -j4
+    make package/perekop/compile V=s -j4 && \
+    make package/luci-app-perekop/compile V=s -j4
