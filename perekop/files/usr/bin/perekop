@@ -16,8 +16,8 @@ check_required_file /lib/functions/network.sh
 check_required_file "$PEREKOP_LIB/constants.sh"
 check_required_file "$PEREKOP_LIB/nft.sh"
 check_required_file "$PEREKOP_LIB/helpers.sh"
-check_required_file "$PEREKOP_LIB/sing_box_config_manager.sh"
-check_required_file "$PEREKOP_LIB/sing_box_config_facade.sh"
+check_required_file "$PEREKOP_LIB/xray_config_manager.sh"
+check_required_file "$PEREKOP_LIB/xray_config_facade.sh"
 check_required_file "$PEREKOP_LIB/logging.sh"
 check_required_file "$PEREKOP_LIB/rulesets.sh"
 . /lib/functions.sh
@@ -26,8 +26,8 @@ check_required_file "$PEREKOP_LIB/rulesets.sh"
 . "$PEREKOP_LIB/constants.sh"
 . "$PEREKOP_LIB/nft.sh"
 . "$PEREKOP_LIB/helpers.sh"
-. "$PEREKOP_LIB/sing_box_config_manager.sh"
-. "$PEREKOP_LIB/sing_box_config_facade.sh"
+. "$PEREKOP_LIB/xray_config_manager.sh"
+. "$PEREKOP_LIB/xray_config_facade.sh"
 . "$PEREKOP_LIB/logging.sh"
 . "$PEREKOP_LIB/rulesets.sh"
 
@@ -36,22 +36,22 @@ config_load "$PEREKOP_CONFIG"
 check_requirements() {
     log "Check Requirements"
 
-    local sing_box_version jq_version coreutils_base64_version
-    sing_box_version="$(sing-box version | head -n1 | awk '{print $3}')"
+    local xray_version jq_version coreutils_base64_version
+    xray_version="$(xray_get_version)"
     jq_version="$(jq --version | awk -F- '{print $2}')"
     coreutils_base64_version="$(base64 --version | head -n1 | awk '{print $4}')"
 
-    if [ -z "$sing_box_version" ]; then
-        log "Package 'sing-box' is not installed. Aborted." "error"
+    if [ -z "$xray_version" ]; then
+        log "Package 'xray-core' is not installed. Aborted." "error"
         exit 1
     else
-        if ! is_min_package_version "$sing_box_version" "$SB_REQUIRED_VERSION"; then
-            log "Package 'sing-box' version ($sing_box_version) is lower than the required minimum ($SB_REQUIRED_VERSION). Update sing-box: opkg update && opkg remove sing-box && opkg install sing-box. Aborted." "error"
+        if ! is_min_package_version "$xray_version" "$XRAY_REQUIRED_VERSION"; then
+            log "Package 'xray-core' version ($xray_version) is lower than the required minimum ($XRAY_REQUIRED_VERSION). Update xray-core: opkg update && opkg upgrade xray-core. Aborted." "error"
             exit 1
         fi
 
-        if ! service_exists "sing-box"; then
-            log "Service 'sing-box' is missing. Please install the official package to ensure the service is available. Aborted." "error"
+        if ! service_exists "xray"; then
+            log "Service 'xray' is missing. Please install the official package to ensure the service is available. Aborted." "error"
             exit 1
         fi
     fi
@@ -118,23 +118,33 @@ start_main() {
 
     br_netfilter_disable
 
-    # Sync time for DoH/DoT
+    # Sync time for TLS
     /usr/sbin/ntpd -q -p 194.190.168.1 -p 216.239.35.0 -p 216.239.35.4 -p 162.159.200.1 -p 162.159.200.123
 
     sleep 1
 
-    mkdir -p "$TMP_SING_BOX_FOLDER"
+    mkdir -p "$TMP_XRAY_FOLDER"
+    mkdir -p "$TMP_LISTS_FOLDER"
     mkdir -p "$TMP_RULESET_FOLDER"
+    mkdir -p "$TMP_LISTS_FOLDER/matchers"
 
     # base
     route_table_rule_mark
     create_nft_rules
-    sing_box_configure_service
+    xray_configure_service
 
-    # sing-box
-    sing_box_init_config
+    # Lists must exist before the config is built: /tmp is wiped on reboot,
+    # so on the first start after a boot the lists are downloaded synchronously
+    if ! lists_initialized; then
+        log "Lists are missing, downloading them before the first start" "debug"
+        list_update
+    fi
+
+    # xray
+    xray_init_config
     config_foreach add_cron_job "section"
-    /etc/init.d/sing-box start
+    /etc/init.d/xray start
+    xray_apply_balancer_overrides
 
     log "Nice"
     list_update &
@@ -172,8 +182,8 @@ stop_main() {
         ip route flush table "$RT_TABLE_NAME"
     fi
 
-    log "Stop sing-box"
-    /etc/init.d/sing-box stop
+    log "Stop xray"
+    /etc/init.d/xray stop
 }
 
 start() {
@@ -215,7 +225,14 @@ restart() {
 
 # Migrations and validation funcs
 migration() {
-    :
+    # Options of sing-box features that have no Xray analogs
+    uci -q delete perekop.settings.enable_yacd
+    uci -q delete perekop.settings.enable_yacd_wan_access
+    uci -q delete perekop.settings.yacd_secret_key
+    uci -q delete perekop.settings.enable_utls_fallback
+    uci -q delete perekop.settings.cache_path
+    uci -q delete perekop.settings.dns_rewrite_ttl
+    uci -q commit perekop
 }
 
 validate_service() {
@@ -247,8 +264,6 @@ br_netfilter_disable() {
         sysctl -w net.bridge.bridge-nf-call-ip6tables=0
     fi
 }
-
-# Main funcs
 
 route_table_rule_mark() {
     grep -q "105 $RT_TABLE_NAME" /etc/iproute2/rt_tables || echo "105 $RT_TABLE_NAME" >> /etc/iproute2/rt_tables
@@ -315,8 +330,8 @@ create_nft_rules() {
     nft add rule inet "$NFT_TABLE_NAME" mangle ct status dnat return
     nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
     nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
-    nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "$SB_FAKEIP_INET4_RANGE" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
-    nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "$SB_FAKEIP_INET4_RANGE" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
+    nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "$XRAY_FAKEIP_INET4_RANGE" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
+    nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "$XRAY_FAKEIP_INET4_RANGE" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
 
     nft add rule inet "$NFT_TABLE_NAME" proxy meta mark \& "$NFT_FAKEIP_MARK" == "$NFT_FAKEIP_MARK" meta l4proto tcp tproxy ip to 127.0.0.1:1602 counter
     nft add rule inet "$NFT_TABLE_NAME" proxy meta mark \& "$NFT_FAKEIP_MARK" == "$NFT_FAKEIP_MARK" meta l4proto udp tproxy ip to 127.0.0.1:1602 counter
@@ -325,8 +340,8 @@ create_nft_rules() {
     nft add rule inet "$NFT_TABLE_NAME" mangle_output meta mark "$NFT_OUTBOUND_MARK" counter return
     nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
     nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
-    nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "$SB_FAKEIP_INET4_RANGE" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
-    nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "$SB_FAKEIP_INET4_RANGE" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
+    nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "$XRAY_FAKEIP_INET4_RANGE" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
+    nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "$XRAY_FAKEIP_INET4_RANGE" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
 
     local exclude_ntp
     config_get_bool exclude_ntp "settings" "exclude_ntp" "0"
@@ -359,7 +374,7 @@ dnsmasq_configure() {
     current_servers="$(uci_get "dhcp" "@dnsmasq[0]" "server")"
     if [ -n "$current_servers" ]; then
         for server in $(uci_get "dhcp" "@dnsmasq[0]" "server"); do
-            if ! [ "$server" == "$SB_DNS_INBOUND_ADDRESS" ]; then
+            if ! [ "$server" == "$XRAY_DNS_INBOUND_ADDRESS" ]; then
                 uci_add_list "dhcp" "@dnsmasq[0]" "perekop_server" "$server"
             fi
         done
@@ -369,8 +384,22 @@ dnsmasq_configure() {
     backup_dnsmasq_config_option "noresolv" "perekop_noresolv"
     backup_dnsmasq_config_option "cachesize" "perekop_cachesize"
 
-    log "Configure dnsmasq for sing-box"
-    uci_add_list "dhcp" "@dnsmasq[0]" "server" "$SB_DNS_INBOUND_ADDRESS"
+    # Backup the address list and pin the FakeIP check domain to a fake IP,
+    # so that traffic to it enters the core and is redirected to the real
+    # service on port 8443 (the port override of podkop)
+    current_addresses="$(uci_get "dhcp" "@dnsmasq[0]" "address")"
+    if [ -n "$current_addresses" ]; then
+        for address in $current_addresses; do
+            if ! [ "$address" == "/$FAKEIP_TEST_DOMAIN/$FAKEIP_TEST_LOCAL_IP" ]; then
+                uci_add_list "dhcp" "@dnsmasq[0]" "perekop_address" "$address"
+            fi
+        done
+        uci_remove "dhcp" "@dnsmasq[0]" "address"
+    fi
+
+    log "Configure dnsmasq for xray"
+    uci_add_list "dhcp" "@dnsmasq[0]" "server" "$XRAY_DNS_INBOUND_ADDRESS"
+    uci_add_list "dhcp" "@dnsmasq[0]" "address" "/$FAKEIP_TEST_DOMAIN/$FAKEIP_TEST_LOCAL_IP"
     uci_set "dhcp" "@dnsmasq[0]" "noresolv" 1
     uci_set "dhcp" "@dnsmasq[0]" "cachesize" 0
     uci_commit "dhcp"
@@ -427,58 +456,28 @@ dnsmasq_restore() {
         log "Backup DNS servers and default resolvfile not found, possible resolving issues" "warn"
     fi
 
+    log "Restoring dnsmasq addresses" "debug"
+    uci_remove "dhcp" "@dnsmasq[0]" "address"
+    backup_addresses="$(uci_get "dhcp" "@dnsmasq[0]" "perekop_address")"
+    if [ -n "$backup_addresses" ]; then
+        for address in $backup_addresses; do
+            uci_add_list "dhcp" "@dnsmasq[0]" "address" "$address"
+        done
+        uci_remove "dhcp" "@dnsmasq[0]" "perekop_address"
+    fi
+
     uci_commit "dhcp"
 
     /etc/init.d/dnsmasq restart
 }
 
-add_cron_job() {
-    ## Future: make a check so that it doesn't recreate many times
-    local community_lists remote_domain_lists remote_subnet_lists update_interval
-    config_get community_lists "$section" "community_lists"
-    config_get remote_domain_lists "$section" "remote_domain_lists"
-    config_get remote_subnet_lists "$section" "remote_subnet_lists"
-    config_get update_interval "settings" "update_interval"
 
-    case "$update_interval" in
-    "1h")
-        cron_job="13 * * * * /usr/bin/perekop list_update"
-        ;;
-    "3h")
-        cron_job="13 */3 * * * /usr/bin/perekop list_update"
-        ;;
-    "12h")
-        cron_job="13 */12 * * * /usr/bin/perekop list_update"
-        ;;
-    "1d")
-        cron_job="13 9 * * * /usr/bin/perekop list_update"
-        ;;
-    "3d")
-        cron_job="13 9 */3 * * /usr/bin/perekop list_update"
-        ;;
-    *)
-        log "Invalid update_interval value: $update_interval"
-        return
-        ;;
-    esac
-
-    if [ -n "$community_lists" ] ||
-        [ -n "$remote_domain_lists" ] ||
-        [ -n "$remote_subnet_lists" ]; then
-        remove_cron_job
-        crontab -l | {
-            cat
-            echo "$cron_job"
-        } | crontab -
-        log "The cron job has been created: $cron_job"
-    fi
-}
-
-remove_cron_job() {
-    (crontab -l | grep -v "/usr/bin/perekop list_update") | crontab -
-    log "The cron job removed"
-}
-
+# Downloads lists. Called synchronously at the first start after a boot
+# (when /tmp is empty) and from cron in the background afterwards.
+# After the download completes, the xray config is regenerated and the core
+# is restarted, but only when the downloaded content actually changed:
+# Xray reads inline lists and geosite.dat at startup only, unlike sing-box
+# which updates rule sets itself.
 list_update() {
     echolog "🔄 Starting lists update..."
 
@@ -500,18 +499,15 @@ list_update() {
         sleep $delay
     done
 
-    if [ "$i" -eq $nslookup_attempts ]; then
+    if [ "$i" -eq "$nslookup_attempts" ]; then
         echolog "❌ DNS check failed after $nslookup_attempts attempts"
         return 1
     fi
 
     # Github Check
     for i in $(seq 1 $curl_attempts); do
-        local service_proxy_address
-        service_proxy_address="$(get_service_proxy_address)"
-
-        if [ -n "$service_proxy_address" ]; then
-            if curl -s -x "http://$service_proxy_address" -m $curl_timeout https://github.com > /dev/null; then
+        if [ -n "$(get_service_proxy_address)" ]; then
+            if curl -s --socks5-hostname "127.0.0.1:$XRAY_SERVICE_SOCKS_INBOUND_PORT" -m $curl_timeout https://github.com > /dev/null; then
                 echolog "✅ GitHub connection check passed (via proxy)"
                 break
             fi
@@ -523,13 +519,13 @@ list_update() {
         fi
 
         echolog "GitHub is unavailable [$i/$curl_attempts] (max-timeout=$curl_timeout)"
-        if [ "$curl_timeout" -lt $curl_max_timeout ]; then
+        if [ "$curl_timeout" -lt "$curl_max_timeout" ]; then
             curl_timeout=$((curl_timeout + 1))
         fi
         sleep $delay
     done
 
-    if [ "$i" -eq $curl_attempts ]; then
+    if [ "$i" -eq "$curl_attempts" ]; then
         echolog "❌ GitHub connection check failed after $curl_attempts attempts"
         return 1
     fi
@@ -537,788 +533,145 @@ list_update() {
     echolog "📥 Downloading and processing lists..."
 
     config_foreach import_community_subnet_lists "section"
+    download_geosite
     config_foreach import_domains_from_remote_domain_lists "section"
     config_foreach import_subnets_from_remote_subnet_lists "section"
+    config_foreach import_local_lists "section"
 
-    if [ $? -eq 0 ]; then
-        echolog "✅ Lists update completed successfully"
-    else
-        echolog "❌ Lists update failed"
-    fi
+    xray_reload_if_lists_changed
+
+    echolog "✅ Lists update completed successfully"
 }
 
-# sing-box funcs
-sing_box_configure_service() {
-    local sing_box_enabled sing_box_user sing_box_config_path sing_box_conffile
-    sing_box_enabled="$(uci_get "sing-box" "main" "enabled")"
-    sing_box_user="$(uci_get "sing-box" "main" "user")"
-
-    if [ "$sing_box_enabled" -ne 1 ]; then
-        uci_set "sing-box" "main" "enabled" 1
-        uci_commit "sing-box"
-        log "sing-box service has been enabled"
-    fi
-
-    if [ "$sing_box_user" != "root" ]; then
-        uci_set "sing-box" "main" "user" "root"
-        uci_commit "sing-box"
-        log "sing-box service user has been changed to root"
-    fi
-
-    config_get sing_box_config_path "settings" "config_path"
-    sing_box_conffile="$(uci_get "sing-box" "main" "conffile")"
-    log "sing-box config path: $sing_box_config_path" "debug"
-    log "sing-box service conffile: $sing_box_conffile" "debug"
-    if [ "$sing_box_conffile" != "$sing_box_config_path" ]; then
-        uci_set "sing-box" "main" "conffile" "$sing_box_config_path"
-        uci_commit "sing-box"
-        log "Configuration file path has been set to $sing_box_config_path"
-    fi
-
-    [ -f /etc/rc.d/S99sing-box ] && log "Disable sing-box" && /etc/init.d/sing-box disable
+lists_initialized() {
+    [ -f "$TMP_LISTS_FOLDER/.initialized" ]
 }
 
-sing_box_init_config() {
-    local config='{"log":{},"dns":{},"ntp":{},"certificate":{},"endpoints":[],"inbounds":[],"outbounds":[],"route":{},"services":[],"experimental":{}}'
-
-    sing_box_configure_log
-    sing_box_configure_inbounds
-    sing_box_configure_outbounds
-    sing_box_configure_dns
-    sing_box_configure_route
-    sing_box_configure_experimental
-    sing_box_additional_inbounds
-    sing_box_save_config
+mark_lists_initialized() {
+    touch "$TMP_LISTS_FOLDER/.initialized"
+    lists_state_hash > "$GEOFILES_STATE"
 }
 
-sing_box_configure_log() {
-    log "Configure the log section of a sing-box JSON configuration"
-
-    local log_level
-    config_get log_level "settings" "log_level" "warn"
-    config=$(sing_box_cm_configure_log "$config" false "$log_level" false)
-}
-
-sing_box_configure_inbounds() {
-    log "Configure the inbounds section of a sing-box JSON configuration"
-
-    config=$(
-        sing_box_cm_add_tproxy_inbound \
-            "$config" "$SB_TPROXY_INBOUND_TAG" "$SB_TPROXY_INBOUND_ADDRESS" "$SB_TPROXY_INBOUND_PORT" true true
-    )
-    config=$(
-        sing_box_cm_add_direct_inbound "$config" "$SB_DNS_INBOUND_TAG" "$SB_DNS_INBOUND_ADDRESS" "$SB_DNS_INBOUND_PORT"
+lists_state_hash() {
+    (
+        cd "$TMP_XRAY_FOLDER" 2> /dev/null || return 1
+        find . -type f ! -name .initialized -print0 | sort -z | xargs -0 md5sum 2> /dev/null | md5sum | cut -d' ' -f1
     )
 }
 
-sing_box_configure_outbounds() {
-    log "Configure the outbounds section of a sing-box JSON configuration"
+xray_reload_if_lists_changed() {
+    local new_hash
+    new_hash=$(lists_state_hash)
 
-    config=$(sing_box_cm_add_direct_outbound "$config" "$SB_DIRECT_OUTBOUND_TAG")
-
-    config_foreach configure_outbound_handler "section"
-}
-
-configure_outbound_handler() {
-    local section="$1"
-
-    local connection_type
-    config_get connection_type "$section" "connection_type"
-    case "$connection_type" in
-    proxy)
-        log "Configuring outbound in proxy connection type for the $section section"
-        local proxy_config_type
-        config_get proxy_config_type "$section" "proxy_config_type"
-
-        case "$proxy_config_type" in
-        url)
-            log "Detected proxy configuration type: url" "debug"
-            local proxy_string udp_over_tcp
-            config_get proxy_string "$section" "proxy_string"
-            config_get udp_over_tcp "$section" "enable_udp_over_tcp"
-
-            if [ -z "$proxy_string" ]; then
-                log "Proxy string is not set. Aborted." "fatal"
-                exit 1
-            fi
-            config=$(sing_box_cf_add_proxy_outbound "$config" "$section" "$proxy_string" "$udp_over_tcp")
-            ;;
-        outbound)
-            log "Detected proxy configuration type: outbound" "debug"
-            local json_outbound
-            config_get json_outbound "$section" "outbound_json"
-            config=$(sing_box_cf_add_json_outbound "$config" "$section" "$json_outbound")
-            ;;
-        selector)
-            log "Detected proxy configuration type: selector" "debug"
-            local selector_proxy_links udp_over_tcp i outbound_tags outbound_tag default_outbound
-            config_get selector_proxy_links "$section" "selector_proxy_links"
-            config_get udp_over_tcp "$section" "enable_udp_over_tcp"
-
-            if [ -z "$selector_proxy_links" ]; then
-                log "URLTest proxy links is not set. Aborted." "fatal"
-                exit 1
-            fi
-
-            i=1
-            for link in $selector_proxy_links; do
-                config="$(sing_box_cf_add_proxy_outbound "$config" "$section-$i" "$link" "$udp_over_tcp")"
-                outbound_tag="$(get_outbound_tag_by_section "$section-$i")"
-                if [ -z "$outbound_tags" ]; then
-                    outbound_tags="$outbound_tag"
-                    default_outbound="$outbound_tag"
-                else
-                    outbound_tags="$outbound_tags,$outbound_tag"
-                fi
-                i=$((i + 1))
-            done
-
-            selector_tag="$(get_outbound_tag_by_section "$section")"
-            selector_outbounds="$(comma_string_to_json_array "$outbound_tags")"
-            config="$(sing_box_cm_add_selector_outbound "$config" "$selector_tag" "$selector_outbounds" \
-                "$default_outbound")"
-            ;;
-        urltest)
-            log "Detected proxy configuration type: urltest" "debug"
-            local urltest_proxy_links udp_over_tcp i urltest_tag selector_tag outbound_tag outbound_tags \
-                urltest_outbounds selector_outbounds urltest_check_interval urltest_tolerance urltest_testing_url \
-                urltest_fallback_links fallback_tags urltest_fallbacks urltest_download_check urltest_download_url
-            config_get urltest_proxy_links "$section" "urltest_proxy_links"
-            config_get urltest_fallback_links "$section" "urltest_fallback_links"
-            config_get udp_over_tcp "$section" "enable_udp_over_tcp"
-            config_get urltest_check_interval "$section" "urltest_check_interval" "3m"
-            config_get urltest_tolerance "$section" "urltest_tolerance" 50
-            config_get urltest_testing_url "$section" "urltest_testing_url" "https://www.gstatic.com/generate_204"
-            config_get urltest_download_check "$section" "urltest_download_check" "default"
-            config_get urltest_download_url "$section" "urltest_download_url"
-
-            if [ -z "$urltest_proxy_links" ]; then
-                log "URLTest proxy links is not set. Aborted." "fatal"
-                exit 1
-            fi
-
-            if [ -n "$urltest_fallback_links" ] && ! sing_box_has_feature "urltest.fallbacks"; then
-                log "Fallback links of the $section section are skipped: the installed sing-box does not support them" "warn"
-                urltest_fallback_links=""
-            fi
-
-            if [ "$urltest_download_check" != "default" ] && ! sing_box_has_feature "urltest.download_url"; then
-                log "Download check settings of the $section section are skipped: the installed sing-box does not support them" "warn"
-                urltest_download_check="default"
-            fi
-
-            i=1
-            for link in $urltest_proxy_links; do
-                config="$(sing_box_cf_add_proxy_outbound "$config" "$section-$i" "$link" "$udp_over_tcp")"
-                outbound_tag="$(get_outbound_tag_by_section "$section-$i")"
-                if [ -z "$outbound_tags" ]; then
-                    outbound_tags="$outbound_tag"
-                else
-                    outbound_tags="$outbound_tags,$outbound_tag"
-                fi
-                i=$((i + 1))
-            done
-
-            i=1
-            for link in $urltest_fallback_links; do
-                config="$(sing_box_cf_add_proxy_outbound "$config" "$section-fallback-$i" "$link" "$udp_over_tcp")"
-                outbound_tag="$(get_outbound_tag_by_section "$section-fallback-$i")"
-                if [ -z "$fallback_tags" ]; then
-                    fallback_tags="$outbound_tag"
-                else
-                    fallback_tags="$fallback_tags,$outbound_tag"
-                fi
-                i=$((i + 1))
-            done
-
-            urltest_tag="$(get_outbound_tag_by_section "$section-urltest")"
-            selector_tag="$(get_outbound_tag_by_section "$section")"
-            urltest_outbounds="$(comma_string_to_json_array "$outbound_tags")"
-            urltest_fallbacks="$(comma_string_to_json_array "$fallback_tags")"
-            selector_outbounds="$(comma_string_to_json_array "$outbound_tags${fallback_tags:+,$fallback_tags},$urltest_tag")"
-            config="$(sing_box_cm_add_urltest_outbound "$config" "$urltest_tag" "$urltest_outbounds" \
-                "$urltest_testing_url" "$urltest_check_interval" "$urltest_tolerance" "" "" \
-                "$urltest_fallbacks" "$urltest_download_check" "$urltest_download_url")"
-            config="$(sing_box_cm_add_selector_outbound "$config" "$selector_tag" "$selector_outbounds" "$urltest_tag")"
-            ;;
-        *)
-            log "Unknown proxy configuration type: '$proxy_config_type'. Aborted." "fatal"
-            exit 1
-            ;;
-        esac
-        ;;
-    vpn)
-        log "Configuring outbound in VPN connection type for the $section section"
-        local interface_name domain_resolver_enabled domain_resolver_dns_type domain_resolver_dns_server \
-            domain_resolver_dns_server_address outbound_tag domain_resolver_tag dns_domain_resolver
-
-        config_get interface_name "$section" "interface"
-        config_get domain_resolver_enabled "$section" "domain_resolver_enabled"
-        config_get domain_resolver_dns_type "$section" "domain_resolver_dns_type"
-        config_get domain_resolver_dns_server "$section" "domain_resolver_dns_server"
-
-        if [ -z "$interface_name" ]; then
-            log "VPN interface is not set. Aborted." "fatal"
-            exit 1
-        fi
-
-        local outbound_tag
-        outbound_tag="$(get_outbound_tag_by_section "$section")"
-
-        if [ "$domain_resolver_enabled" -eq 1 ]; then
-            domain_resolver_dns_server_address="$(url_get_host "$dns_server")"
-            if ! is_ipv4 "$domain_resolver_dns_server_address"; then
-                dns_domain_resolver=$SB_BOOTSTRAP_SERVER_TAG
-            fi
-            domain_resolver_tag="$(get_domain_resolver_tag "$section")"
-            config=$(sing_box_cf_add_dns_server "$config" "$domain_resolver_dns_type" "$domain_resolver_tag" \
-                "$domain_resolver_dns_server" "$dns_domain_resolver" "$outbound_tag")
-        fi
-
-        config=$(sing_box_cm_add_interface_outbound "$config" "$outbound_tag" "$interface_name" "$domain_resolver_tag")
-        ;;
-    block)
-        log "Connection type 'block' detected for the $section section – no outbound will be created (handled via reject route rules)"
-        ;;
-    exclusion)
-        log "Connection type 'exclusion' detected for the $section section – no outbound will be created (handled via route rules)"
-        ;;
-    *)
-        log "Unknown connection type '$connection_type' for the $section section. Aborted." "fatal"
-        exit 1
-        ;;
-    esac
-}
-
-sing_box_configure_dns() {
-    log "Configure the DNS section of a sing-box JSON configuration"
-    config=$(sing_box_cm_configure_dns "$config" "$SB_DNS_SERVER_TAG" "ipv4_only" true)
-
-    log "Adding DNS Servers" "debug"
-    local dns_type dns_server bootstrap_dns_server dns_domain_resolver dns_server_address
-    config_get dns_type "settings" "dns_type" "doh"
-    config_get dns_server "settings" "dns_server" "1.1.1.1"
-    config_get bootstrap_dns_server "settings" "bootstrap_dns_server" "77.88.8.8"
-
-    dns_server_address="$(url_get_host "$dns_server")"
-    if ! is_ipv4 "$dns_server_address"; then
-        dns_domain_resolver=$SB_BOOTSTRAP_SERVER_TAG
+    if [ -z "$new_hash" ]; then
+        echolog "❌ Cannot compute the lists state hash"
+        return 1
     fi
 
-    config=$(sing_box_cm_add_udp_dns_server "$config" "$SB_BOOTSTRAP_SERVER_TAG" "$bootstrap_dns_server" 53)
-    config=$(sing_box_cf_add_dns_server "$config" "$dns_type" "$SB_DNS_SERVER_TAG" "$dns_server" "$dns_domain_resolver")
-    config=$(sing_box_cm_add_fakeip_dns_server "$config" "$SB_FAKEIP_DNS_SERVER_TAG" "$SB_FAKEIP_INET4_RANGE")
-
-    log "Adding DNS Rules"
-    local rewrite_ttl service_domains
-    config_get rewrite_ttl "settings" "dns_rewrite_ttl" "60"
-
-    config=$(sing_box_cm_add_dns_reject_rule "$config" "query_type" "HTTPS")
-    config=$(sing_box_cm_add_dns_reject_rule "$config" "domain_suffix" '"use-application-dns.net"')
-    config=$(sing_box_cm_add_dns_route_rule "$config" "$SB_FAKEIP_DNS_SERVER_TAG" "$SB_FAKEIP_DNS_RULE_TAG")
-    config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_DNS_RULE_TAG" "rewrite_ttl" "$rewrite_ttl")
-    # The service domains have a rule apart from the rule sets: since sing-box 1.14 a rule set of
-    # several rules (the community list "discord") next to "domain" matches only together with it.
-    # The rule above has no condition until a list is added, and is not saved without one.
-    config=$(sing_box_cm_add_dns_route_rule "$config" "$SB_FAKEIP_DNS_SERVER_TAG" "$SB_FAKEIP_SERVICE_DNS_RULE_TAG")
-    config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_SERVICE_DNS_RULE_TAG" "rewrite_ttl" "$rewrite_ttl")
-    service_domains=$(comma_string_to_json_array "$FAKEIP_TEST_DOMAIN,$CHECK_PROXY_IP_DOMAIN")
-    config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_SERVICE_DNS_RULE_TAG" "domain" "$service_domains")
-}
-
-sing_box_configure_route() {
-    log "Configure the route section of a sing-box JSON configuration"
-
-    local output_network_interface
-    config_get output_network_interface "settings" "output_network_interface"
-    if [ -z "$output_network_interface" ]; then
-        config=$(sing_box_cm_configure_route "$config" "$SB_DIRECT_OUTBOUND_TAG" true "$SB_DNS_SERVER_TAG")
+    if [ ! -f "$GEOFILES_STATE" ] || [ "$(cat "$GEOFILES_STATE")" != "$new_hash" ]; then
+        mark_lists_initialized
+        if pgrep -f "xray run" > /dev/null 2>&1; then
+            echolog "♻️ Lists changed, regenerating the xray config and restarting the core"
+            xray_init_config
+            /etc/init.d/xray restart
+        fi
     else
-        config=$(sing_box_cm_configure_route "$config" "$SB_DIRECT_OUTBOUND_TAG" false "$SB_DNS_SERVER_TAG" \
-            "$output_network_interface")
-    fi
-
-    local sniff_inbounds
-    sniff_inbounds=$(comma_string_to_json_array "$SB_TPROXY_INBOUND_TAG,$SB_DNS_INBOUND_TAG")
-    config=$(sing_box_cm_sniff_route_rule "$config" "inbound" "$sniff_inbounds")
-
-    config=$(sing_box_cm_add_hijack_dns_route_rule "$config" "protocol" "dns")
-
-    local disable_quic
-    config_get_bool disable_quic "settings" "disable_quic" 0
-    if [ "$disable_quic" -eq 1 ]; then
-        config=$(sing_box_cf_add_single_key_reject_rule "$config" "$SB_TPROXY_INBOUND_TAG" "protocol" "quic")
-    fi
-
-    local first_outbound_section
-    first_outbound_section="$(get_first_outbound_section)"
-    first_outbound_tag="$(get_outbound_tag_by_section "$first_outbound_section")"
-    config=$(sing_box_cf_proxy_domain "$config" "$SB_TPROXY_INBOUND_TAG" "$CHECK_PROXY_IP_DOMAIN" "$first_outbound_tag")
-    config=$(sing_box_cf_override_domain_port "$config" "$FAKEIP_TEST_DOMAIN" 8443)
-
-    configure_common_reject_route_rule
-    configure_common_direct_route_rule
-
-    local routing_excluded_ips
-    config_get routing_excluded_ips "settings" "routing_excluded_ips"
-    if [ -n "$routing_excluded_ips" ]; then
-        rule_tag="$(gen_id)"
-        config=$(sing_box_cm_add_route_rule "$config" "$rule_tag" "$SB_TPROXY_INBOUND_TAG" "$SB_DIRECT_OUTBOUND_TAG")
-        config_list_foreach "settings" "routing_excluded_ips" exclude_source_ip_from_routing_handler "$rule_tag"
-    fi
-
-    config_foreach include_source_ips_in_routing_handler "section"
-
-    config_foreach configure_routing_for_section_lists "section"
-}
-
-include_source_ips_in_routing_handler() {
-    local section="$1"
-
-    local fully_routed_ips rule_tag
-    config_get fully_routed_ips "$section" "fully_routed_ips"
-    if [ -n "$fully_routed_ips" ]; then
-        rule_tag="$(gen_id)"
-        config=$(
-            sing_box_cm_add_route_rule \
-                "$config" "$rule_tag" "$SB_TPROXY_INBOUND_TAG" "$(get_outbound_tag_by_section "$section")"
-        )
-        config_list_foreach "$section" "fully_routed_ips" include_source_ip_in_routing_handler "$rule_tag"
+        mark_lists_initialized
+        echolog "Lists did not change, the core is not restarted"
     fi
 }
 
-configure_common_reject_route_rule() {
-    local block_sections block_section_lists_enabled
-    block_sections="$(get_sections_by_connection_type "block")"
-    block_section_lists_enabled=0
+download_geosite() {
+    local community_lists_geosite_needed=0
 
-    if [ -n "$block_sections" ]; then
-        for block_section in $block_sections; do
-            if section_has_enabled_lists "$block_section"; then
-                block_section_lists_enabled=1
-                break
-            fi
-        done
-        if [ "$block_section_lists_enabled" -eq 1 ]; then
-            config=$(sing_box_cm_add_reject_route_rule "$config" "$SB_REJECT_RULE_TAG" "$SB_TPROXY_INBOUND_TAG")
-        else
-            log "Block sections does not have any enabled list, reject rule is not required" "warn"
-        fi
-    fi
-}
+    any_community_domain_lists() {
+        local section="$1"
+        local community_lists
+        config_get community_lists "$section" "community_lists"
+        [ -n "$community_lists" ] && community_lists_geosite_needed=1
+    }
+    config_foreach any_community_domain_lists "section"
 
-configure_common_direct_route_rule() {
-    local exclusion_sections exclusion_section_list_enabled
-    exclusion_sections="$(get_sections_by_connection_type "exclusion")"
-    exclusion_section_list_enabled=0
-
-    if [ -n "$exclusion_sections" ]; then
-        for exclusion_section in $exclusion_sections; do
-            if section_has_enabled_lists "$exclusion_section"; then
-                exclusion_section_list_enabled=1
-                break
-            fi
-        done
-        if [ "$exclusion_section_list_enabled" -eq 1 ]; then
-            config=$(sing_box_cm_add_route_rule "$config" "$SB_EXCLUSION_RULE_TAG" "$SB_TPROXY_INBOUND_TAG" \
-                "$SB_DIRECT_OUTBOUND_TAG")
-        else
-            log "Exclusion sections does not have any enabled list, route rule is not required" "warn"
-        fi
-    fi
-}
-
-include_source_ip_in_routing_handler() {
-    local source_ip="$1"
-    local rule_tag="$2"
-    nft_list_all_traffic_from_ip "$source_ip"
-    config=$(sing_box_cm_patch_route_rule "$config" "$rule_tag" "source_ip_cidr" "$source_ip")
-}
-
-exclude_source_ip_from_routing_handler() {
-    local source_ip="$1"
-    local rule_tag="$2"
-
-    config=$(sing_box_cm_patch_route_rule "$config" "$rule_tag" "source_ip_cidr" "$source_ip")
-}
-
-configure_routing_for_section_lists() {
-    local section="$1"
-
-    log "Configuring routing for '$section' section"
-    if ! section_has_enabled_lists "$section"; then
-        log "Section '$section' does not have any enabled list, skipping..." "warn"
+    if [ "$community_lists_geosite_needed" -eq 0 ]; then
         return 0
     fi
 
-    local community_lists user_domain_list_type user_subnet_list_type local_domain_lists local_subnet_lists \
-        remote_domain_lists remote_subnet_lists section_connection_type route_rule_tag resolve_real_ip_for_routing
-    config_get community_lists "$section" "community_lists"
-    config_get user_domain_list_type "$section" "user_domain_list_type" "disabled"
-    config_get user_subnet_list_type "$section" "user_subnet_list_type" "disabled"
-    config_get local_domain_lists "$section" "local_domain_lists"
-    config_get local_subnet_lists "$section" "local_subnet_lists"
-    config_get remote_domain_lists "$section" "remote_domain_lists"
-    config_get remote_subnet_lists "$section" "remote_subnet_lists"
-    config_get section_connection_type "$section" "connection_type"
-    config_get_bool resolve_real_ip_for_routing "$section" "resolve_real_ip_for_routing" 0
+    local tmpfile http_proxy_address
+    tmpfile=$(mktemp)
+    http_proxy_address="$(get_service_proxy_address)"
 
-    case "$section_connection_type" in
-    proxy | vpn)
-        route_rule_tag="$(gen_id)"
-        outbound_tag=$(get_outbound_tag_by_section "$section")
-        config=$(sing_box_cm_add_route_rule "$config" "$route_rule_tag" "$SB_TPROXY_INBOUND_TAG" "$outbound_tag")
-        ;;
-    block)
-        route_rule_tag="$SB_REJECT_RULE_TAG"
-        ;;
-    exclusion)
-        route_rule_tag="$SB_EXCLUSION_RULE_TAG"
-        ;;
-    *)
-        log "Unsupported '$section_connection_type' connection type. Skipping routing for '$section' section" "fatal"
-        exit 1
-        ;;
-    esac
-
-    if [ -n "$community_lists" ]; then
-        log "Processing community list routing rules for '$section' section"
-        config_list_foreach "$section" "community_lists" configure_community_list_handler "$section" "$route_rule_tag"
+    if download_to_file "$GEOSITE_URL" "$tmpfile" "$http_proxy_address"; then
+        if [ -s "$tmpfile" ]; then
+            mv "$tmpfile" "$TMP_XRAY_FOLDER/geosite.dat"
+            echolog "✅ geosite.dat downloaded"
+            return 0
+        fi
     fi
 
-    if [ "$user_domain_list_type" != "disabled" ]; then
-        log "Processing user domains routing rules for '$section' section"
-        configure_user_domain_list "$section" "$route_rule_tag"
+    rm -f "$tmpfile"
+
+    if [ -f "$TMP_XRAY_FOLDER/geosite.dat" ]; then
+        echolog "⚠️ geosite.dat download failed, keeping the previous version"
+    else
+        echolog "❌ geosite.dat download failed"
     fi
 
-    if [ "$user_subnet_list_type" != "disabled" ]; then
-        log "Processing user subnets routing rules for '$section' section"
-        configure_user_subnet_list "$section" "$route_rule_tag"
-    fi
-
-    if [ -n "$local_domain_lists" ]; then
-        log "Processing local domains routing rules for '$section' section"
-        configure_local_domain_lists "$section" "$route_rule_tag"
-    fi
-
-    if [ -n "$local_subnet_lists" ]; then
-        log "Processing local subnets routing rules for '$section' section"
-        configure_local_subnet_lists "$section" "$route_rule_tag"
-    fi
-
-    if [ -n "$remote_domain_lists" ]; then
-        log "Processing remote domains routing rules for '$section' section"
-        config_list_foreach "$section" "remote_domain_lists" configure_remote_domain_or_subnet_list_handler \
-            "domains" "$section" "$route_rule_tag"
-    fi
-
-    if [ -n "$remote_subnet_lists" ]; then
-        log "Processing remote subnets routing rules for '$section' section"
-        config_list_foreach "$section" "remote_subnet_lists" configure_remote_domain_or_subnet_list_handler \
-            "subnets" "$section" "$route_rule_tag"
-    fi
-
-    if [ "$resolve_real_ip_for_routing" -eq 1 ]; then
-        config=$(sing_box_cm_add_resolve_rule "$config" "$route_rule_tag" "$(gen_id)" "$SB_DNS_SERVER_TAG")
-        log "Added resolve rule for '$section' section" "debug"
-    fi
+    return 1
 }
 
-configure_community_list_handler() {
-    local tag="$1"
-    local section="$2"
-    local route_rule_tag="$3"
-
-    local ruleset_tag format url update_interval detour
-    ruleset_tag="$(get_ruleset_tag "$section" "$tag" "community")"
-    format="binary"
-    url="$SRS_MAIN_URL/$tag.srs"
-    detour="$(get_download_detour_tag)"
-    config_get update_interval "settings" "update_interval" "1d"
-
-    config=$(sing_box_cm_add_remote_ruleset "$config" "$ruleset_tag" "$format" "$url" "$detour" "$update_interval")
-    config=$(sing_box_cm_patch_route_rule "$config" "$route_rule_tag" "rule_set" "$ruleset_tag")
-    config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_DNS_RULE_TAG" "rule_set" "$ruleset_tag")
-}
-
-prepare_source_ruleset() {
-    local section="$1"
-    local name="$2"
-    local type="$3"
-    local route_rule_tag="$4"
-
-    log "Preparing a $name $type rule set for '$section' section" "debug"
-    ruleset_tag=$(get_ruleset_tag "$section" "$name" "$type")
-    ruleset_filepath="$TMP_RULESET_FOLDER/$ruleset_tag.json"
-    create_source_rule_set "$ruleset_filepath"
-    case $? in
-    0)
-        config=$(sing_box_cm_add_local_ruleset "$config" "$ruleset_tag" "source" "$ruleset_filepath")
-        config=$(sing_box_cm_patch_route_rule "$config" "$route_rule_tag" "rule_set" "$ruleset_tag")
-        case "$type" in
-        domains)
-            config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_DNS_RULE_TAG" "rule_set" "$ruleset_tag")
-            ;;
-        subnets) ;;
-        *)
-            log "Unsupported remote rule set type: $type" "error"
-            return 1
-            ;;
-        esac
-        ;;
-    3) log "Source rule set $ruleset_filepath already exists, skipping." "debug" ;;
-    esac
-}
-
-configure_user_domain_list() {
-    local section="$1"
-    local route_rule_tag="$2"
-
-    prepare_source_ruleset "$section" "user" "domains" "$route_rule_tag"
-
-    local user_domain_list_type items json_array
-    config_get user_domain_list_type "$section" "user_domain_list_type"
-    case "$user_domain_list_type" in
-    dynamic) config_get items "$section" "user_domains" ;;
-    text) config_get items "$section" "user_domains_text" ;;
-    esac
-
-    items="$(parse_domain_or_subnet_string_to_commas_string "$items" "domains")"
-    json_array="$(comma_string_to_json_array "$items")"
-    patch_source_ruleset_rules "$ruleset_filepath" "domain_suffix" "$json_array"
-}
-
-configure_user_subnet_list() {
-    local section="$1"
-    local route_rule_tag="$2"
-
-    prepare_source_ruleset "$section" "user" "subnets" "$route_rule_tag"
-
-    local user_subnet_list_type items json_array
-    config_get user_subnet_list_type "$section" "user_subnet_list_type"
-    case "$user_subnet_list_type" in
-    dynamic) config_get items "$section" "user_subnets" ;;
-    text) config_get items "$section" "user_subnets_text" ;;
-    esac
-
-    items="$(parse_domain_or_subnet_string_to_commas_string "$items" "subnets")"
-    json_array="$(comma_string_to_json_array "$items")"
-    patch_source_ruleset_rules "$ruleset_filepath" "ip_cidr" "$json_array"
-    nft_add_set_elements "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME" "$items"
-}
-
-configure_local_domain_lists() {
-    local section="$1"
-    local route_rule_tag="$2"
-
-    prepare_source_ruleset "$section" "local" "domains" "$route_rule_tag"
-
-    config_list_foreach "$section" "local_domain_lists" import_local_domain_list_handler "$ruleset_filepath"
-}
-
-import_local_domain_list_handler() {
-    local local_domain_list_filepath="$1"
-    local ruleset_filepath="$2"
-
-    if ! file_exists "$local_domain_list_filepath"; then
-        log "Local domain list file $local_domain_list_filepath not found" "error"
-        return 1
-    fi
-
-    import_plain_domain_list_to_local_source_ruleset_chunked "$local_domain_list_filepath" "$ruleset_filepath"
-}
-
-configure_local_subnet_lists() {
-    local section="$1"
-    local route_rule_tag="$2"
-
-    prepare_source_ruleset "$section" "local" "subnets" "$route_rule_tag"
-
-    config_list_foreach "$section" "local_subnet_lists" import_local_subnets_list_handler "$ruleset_filepath"
-}
-
-import_local_subnets_list_handler() {
-    local local_subnet_list_filepath="$1"
-    local ruleset_filepath="$2"
-
-    if ! file_exists "$local_subnet_list_filepath"; then
-        log "Local subnet list file $local_subnet_list_filepath not found" "error"
-        return 1
-    fi
-
-    import_plain_subnet_list_to_local_source_ruleset_chunked "$local_subnet_list_filepath" "$ruleset_filepath"
-    nft_add_set_elements_from_file_chunked "$local_subnet_list_filepath" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
-}
-
-configure_remote_domain_or_subnet_list_handler() {
+# Downloads a list and normalizes it to a plain one-entry-per-line file.
+# Arguments:
+#   $1 - URL
+#   $2 - destination file
+# Returns:
+#   0 on success, 1 on failure
+download_normalized_list() {
     local url="$1"
-    local type="$2"
-    local section="$3"
-    local route_rule_tag="$4"
+    local output_filepath="$2"
+    local http_proxy_address tmpfile file_extension
 
-    local file_extension
-    file_extension=$(url_get_file_extension "$url")
-    log "Detected file extension: '$file_extension'" "debug"
-    case "$file_extension" in
-    json | srs)
-        log "Creating a remote $type ruleset from the source URL" "info"
-        local basename ruleset_tag format detour update_interval
-        basename=$(url_get_basename "$url")
-        ruleset_tag=$(get_ruleset_tag "$section" "$basename" "remote-$type")
-        format="$(get_ruleset_format_by_file_extension "$file_extension")"
-        detour="$(get_download_detour_tag)"
-        config_get update_interval "settings" "update_interval" "1d"
+    http_proxy_address="$(get_service_proxy_address)"
+    tmpfile=$(mktemp)
 
-        config=$(sing_box_cm_add_remote_ruleset "$config" "$ruleset_tag" "$format" "$url" "$detour" "$update_interval")
-        config=$(sing_box_cm_patch_route_rule "$config" "$route_rule_tag" "rule_set" "$ruleset_tag")
-        case "$type" in
-        domains)
-            config=$(sing_box_cm_patch_dns_route_rule "$config" "$SB_FAKEIP_DNS_RULE_TAG" "rule_set" "$ruleset_tag")
-            ;;
-        subnets) ;;
-        *) log "Unsupported remote rule set type: $type" "error" ;;
-        esac
-        ;;
-    *)
-        prepare_source_ruleset "$section" "remote" "$type" "$route_rule_tag"
-        ;;
-    esac
-}
+    download_to_file "$url" "$tmpfile" "$http_proxy_address"
 
-sing_box_configure_experimental() {
-    log "Configure the experimental section of a sing-box JSON configuration"
-
-    log "Configuring cache database"
-    local cache_file
-    config_get cache_file "settings" "cache_path" "/tmp/sing-box/cache.db"
-    config=$(sing_box_cm_configure_cache_file "$config" true "$cache_file" true)
-
-    log "Configuring Clash API"
-    local enable_yacd enable_yacd_wan_access clash_api_controller_address
-    config_get_bool enable_yacd "settings" "enable_yacd" 0
-    config_get_bool enable_yacd_wan_access "settings" "enable_yacd_wan_access" 0
-
-    if [ "$enable_yacd" -eq 1 ] && [ "$enable_yacd_wan_access" -eq 1 ]; then
-        clash_api_controller_address="0.0.0.0"
-    else
-        clash_api_controller_address="$(get_service_listen_address)"
-        if [ -z "$clash_api_controller_address" ]; then
-            log "Could not determine the listening IP address for the Clash API controller. It will run only on localhost." "warn"
-            clash_api_controller_address="127.0.0.1"
-        fi
-    fi
-
-    if [ "$enable_yacd" -eq 1 ]; then
-        log "YACD is enabled, enabling Clash API with downloadable YACD" "debug"
-        local yacd_secret_key external_controller_ui
-        config_get yacd_secret_key "settings" "yacd_secret_key"
-        external_controller_ui="ui"
-
-        config=$(
-            sing_box_cm_configure_clash_api \
-                "$config" \
-                "$clash_api_controller_address:$SB_CLASH_API_CONTROLLER_PORT" \
-                "$external_controller_ui" \
-                "$yacd_secret_key"
-        )
-    else
-        log "YACD is disabled, enabling Clash API in online mode" "debug"
-        config=$(
-            sing_box_cm_configure_clash_api "$config" "$clash_api_controller_address:$SB_CLASH_API_CONTROLLER_PORT"
-        )
-    fi
-
-    local enable_utls_fallback
-    config_get_bool enable_utls_fallback "settings" "enable_utls_fallback" 0
-    if [ "$enable_utls_fallback" -eq 1 ]; then
-        if sing_box_has_feature "tls.utls-fallback"; then
-            log "Configuring uTLS fallback"
-            config=$(
-                sing_box_cm_configure_utls_fallback "$config" "$(comma_string_to_json_array "$SB_UTLS_FALLBACK_FINGERPRINTS")"
-            )
-        else
-            log "uTLS fallback is skipped: the installed sing-box does not support it" "warn"
-        fi
-    fi
-}
-
-sing_box_additional_inbounds() {
-    log "Configure the additional inbounds of a sing-box JSON configuration"
-
-    local download_lists_via_proxy
-    config_get_bool download_lists_via_proxy "settings" "download_lists_via_proxy" 0
-    if [ "$download_lists_via_proxy" -eq 1 ]; then
-        local download_lists_via_proxy_section section_outbound_tag
-        config_get download_lists_via_proxy_section "settings" "download_lists_via_proxy_section"
-        section_outbound_tag="$(get_outbound_tag_by_section "$download_lists_via_proxy_section")"
-        config=$(
-            sing_box_cf_add_mixed_inbound_and_route_rule \
-                "$config" \
-                "$SB_SERVICE_MIXED_INBOUND_TAG" \
-                "$SB_SERVICE_MIXED_INBOUND_ADDRESS" \
-                "$SB_SERVICE_MIXED_INBOUND_PORT" \
-                "$section_outbound_tag"
-        )
-    fi
-
-    config_foreach configure_section_mixed_proxy "section"
-}
-
-configure_section_mixed_proxy() {
-    local section="$1"
-
-    local mixed_inbound_enabled mixed_proxy_port mixed_inbound_tag mixed_outbound_tag mixed_proxy_address
-    config_get_bool mixed_inbound_enabled "$section" "mixed_proxy_enabled" 0
-    mixed_proxy_address="$(get_service_listen_address)"
-    if [ -z "$mixed_proxy_address" ]; then
-        log "Could not determine the listening IP address for the Mixed Proxy. The proxy will not be created." "warn"
+    if [ $? -ne 0 ] || [ ! -s "$tmpfile" ]; then
+        log "Download $url list failed" "error"
+        rm -f "$tmpfile"
         return 1
     fi
-    config_get mixed_proxy_port "$section" "mixed_proxy_port"
-    if [ "$mixed_inbound_enabled" -eq 1 ]; then
-        mixed_inbound_tag="$(get_inbound_tag_by_section "$section-mixed")"
-        mixed_outbound_tag="$(get_outbound_tag_by_section "$section")"
-        config=$(
-            sing_box_cf_add_mixed_inbound_and_route_rule \
-                "$config" \
-                "$mixed_inbound_tag" \
-                "$mixed_proxy_address" \
-                "$mixed_proxy_port" \
-                "$mixed_outbound_tag"
-        )
-    fi
-}
 
-sing_box_save_config() {
-    local sing_box_config_path temp_file_path current_config_hash temp_config_hash
-    config_get sing_box_config_path "settings" "config_path"
-    temp_file_path="$(mktemp)"
+    convert_crlf_to_lf "$tmpfile"
 
-    log "Save sing-box temporary config to $temp_file_path" "debug"
-    sing_box_cm_save_config_to_file "$config" "$temp_file_path"
+    file_extension=$(url_get_file_extension "$url")
+    case "$file_extension" in
+    json)
+        # sing-box source rule set: extract domain and subnet rules to plain lists
+        jq -r '
+            .rules[] |
+            (.domain_suffix[]? | "domain:\(.)"),
+            (.domain[]? | "full:\(.)"),
+            (.domain_keyword[]? | "keyword:\(.)"),
+            (.domain_regexp[]? | "regexp:\(.)"),
+            (.ip_cidr[]? | "\(.)")
+        ' "$tmpfile" > "$output_filepath" 2>/dev/null || {
+            log "Failed to extract rules from the JSON list $url" "error"
+            rm -f "$tmpfile"
+            return 1
+        }
+        ;;
+    srs)
+        log "The .srs format is not supported by perekop (Xray cannot read sing-box binary rule sets). Use a plain text or .json list" "error"
+        rm -f "$tmpfile"
+        return 1
+        ;;
+    *)
+        grep -v '^[[:space:]]*$' "$tmpfile" | grep -v '^//' > "$output_filepath"
+        ;;
+    esac
 
-    sing_box_config_check "$temp_file_path"
-
-    current_config_hash=$(md5sum "$sing_box_config_path" 2> /dev/null | awk '{print $1}')
-    temp_config_hash=$(md5sum "$temp_file_path" | awk '{print $1}')
-    log "Current sing-box config hash: $current_config_hash" "debug"
-    log "Temporary sing-box config hash: $temp_config_hash" "debug"
-    if [ "$current_config_hash" != "$temp_config_hash" ]; then
-        log "sing-box configuration has changed and will be updated"
-        mv "$temp_file_path" "$sing_box_config_path"
-    else
-        log "sing-box configuration is unchanged"
-        rm "$temp_file_path"
-    fi
-}
-
-sing_box_config_check() {
-    local config_path="$1"
-
-    if ! sing-box -c "$config_path" check > /dev/null 2>&1; then
-        log "Sing-box configuration $config_path is invalid. Aborted." "fatal"
-        exit 1
-    fi
+    rm -f "$tmpfile"
+    return 0
 }
 
 import_community_subnet_lists() {
@@ -1405,43 +758,12 @@ import_domains_from_remote_domain_list_handler() {
     local url="$1"
     local section="$2"
 
-    log "Importing domains from URL: $url"
+    log "Importing domains from URL: $url" "debug"
 
-    local file_extension
-    file_extension=$(url_get_file_extension "$url")
-    log "Detected file extension: '$file_extension'" "debug"
-    case "$file_extension" in
-    json | srs)
-        log "No update needed - sing-box manages updates automatically."
-        ;;
-    *)
-        log "Import domains from a remote plain-text list"
-        import_domains_from_remote_plain_file "$url" "$section"
-        ;;
-    esac
-}
+    local basename
+    basename=$(url_get_basename "$url")
 
-import_domains_from_remote_plain_file() {
-    local url="$1"
-    local section="$2"
-
-    local tmpfile http_proxy_address items json_array
-    tmpfile=$(mktemp)
-    http_proxy_address="$(get_service_proxy_address)"
-
-    download_to_file "$url" "$tmpfile" "$http_proxy_address"
-
-    if [ $? -ne 0 ] || [ ! -s "$tmpfile" ]; then
-        log "Download $url list failed" "error"
-        return 1
-    fi
-
-    convert_crlf_to_lf "$tmpfile"
-    ruleset_tag=$(get_ruleset_tag "$section" "remote" "domains")
-    ruleset_filepath="$TMP_RULESET_FOLDER/$ruleset_tag.json"
-    import_plain_domain_list_to_local_source_ruleset_chunked "$tmpfile" "$ruleset_filepath"
-
-    rm -f "$tmpfile"
+    download_normalized_list "$url" "$TMP_LISTS_FOLDER/remote-$section-$basename.lst"
 }
 
 import_subnets_from_remote_subnet_lists() {
@@ -1458,95 +780,56 @@ import_subnets_from_remote_subnet_list_handler() {
     local url="$1"
     local section="$2"
 
-    log "Importing subnets from URL: $url"
+    log "Importing subnets from URL: $url" "debug"
 
-    local file_extension
-    file_extension="$(url_get_file_extension "$url")"
-    log "Detected file extension: '$file_extension'" "debug"
-    case "$file_extension" in
-    json)
-        log "Import subnets from a remote JSON list" "info"
-        import_subnets_from_remote_json_file "$url"
-        ;;
-    srs)
-        log "Import subnets from a remote SRS list" "info"
-        import_subnets_from_remote_srs_file "$url"
-        ;;
-    *)
-        log "Import subnets from a remote plain-text list" "info"
-        import_subnets_from_remote_plain_file "$url" "$section"
-        ;;
-    esac
-}
-
-import_subnets_from_remote_json_file() {
-    local url="$1"
-    local json_tmpfile subnets_tmpfile http_proxy_address
-    json_tmpfile="$(mktemp)"
-    subnets_tmpfile="$(mktemp)"
-    http_proxy_address="$(get_service_proxy_address)"
-
-    download_to_file "$url" "$json_tmpfile" "$http_proxy_address"
-
-    if [ $? -ne 0 ] || [ ! -s "$json_tmpfile" ]; then
-        log "Download $url list failed" "error"
-        return 1
-    fi
-
-    extract_ip_cidr_from_json_ruleset_to_file "$json_tmpfile" "$subnets_tmpfile"
-    nft_add_set_elements_from_file_chunked "$subnets_tmpfile" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
-    rm -f "$json_tmpfile" "$subnets_tmpfile"
-}
-
-import_subnets_from_remote_srs_file() {
-    local url="$1"
-
-    local binary_tmpfile json_tmpfile subnets_tmpfile http_proxy_address
-    binary_tmpfile="$(mktemp)"
-    json_tmpfile="$(mktemp)"
-    subnets_tmpfile="$(mktemp)"
-    http_proxy_address="$(get_service_proxy_address)"
-
-    download_to_file "$url" "$binary_tmpfile" "$http_proxy_address"
-
-    if [ $? -ne 0 ] || [ ! -s "$binary_tmpfile" ]; then
-        log "Download $url list failed" "error"
-        return 1
-    fi
-
-    if ! decompile_binary_ruleset "$binary_tmpfile" "$json_tmpfile"; then
-        log "Failed to decompile binary rule set file" "error"
-        return 1
-    fi
-
-    extract_ip_cidr_from_json_ruleset_to_file "$json_tmpfile" "$subnets_tmpfile"
-    nft_add_set_elements_from_file_chunked "$subnets_tmpfile" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
-    rm -f "$binary_tmpfile" "$json_tmpfile" "$subnets_tmpfile"
-}
-
-import_subnets_from_remote_plain_file() {
-    local url="$1"
-    local section="$2"
-
-    local tmpfile http_proxy_address items json_array
+    local basename tmpfile
+    basename=$(url_get_basename "$url")
     tmpfile=$(mktemp)
-    http_proxy_address="$(get_service_proxy_address)"
 
-    download_to_file "$url" "$tmpfile" "$http_proxy_address"
+    download_normalized_list "$url" "$tmpfile" || {
+        rm -f "$tmpfile"
+        return 1
+    }
 
-    if [ $? -ne 0 ] || [ ! -s "$tmpfile" ]; then
-        log "Download $url list failed" "error"
+    nft_add_set_elements_from_file_chunked "$tmpfile" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
+    mv "$tmpfile" "$TMP_LISTS_FOLDER/remote-$section-$basename.lst"
+}
+
+import_local_lists() {
+    local section="$1"
+    local local_domain_lists local_subnet_lists
+
+    config_get local_domain_lists "$section" "local_domain_lists"
+    config_get local_subnet_lists "$section" "local_subnet_lists"
+
+    if [ -n "$local_domain_lists" ]; then
+        log "Importing local domain lists for '$section' section"
+        config_list_foreach "$section" "local_domain_lists" import_local_list_handler "domains" "$section"
+    fi
+
+    if [ -n "$local_subnet_lists" ]; then
+        log "Importing local subnet lists for '$section' section"
+        config_list_foreach "$section" "local_subnet_lists" import_local_list_handler "subnets" "$section"
+    fi
+}
+
+import_local_list_handler() {
+    local local_list_filepath="$1"
+    local type="$2"
+    local section="$3"
+
+    if ! file_exists "$local_list_filepath"; then
+        log "Local list file $local_list_filepath not found" "error"
         return 1
     fi
 
-    convert_crlf_to_lf "$tmpfile"
+    local destination="$TMP_LISTS_FOLDER/local-$section-$(basename "$local_list_filepath")"
 
-    ruleset_tag=$(get_ruleset_tag "$section" "remote" "subnets")
-    ruleset_filepath="$TMP_RULESET_FOLDER/$ruleset_tag.json"
-    import_plain_subnet_list_to_local_source_ruleset_chunked "$tmpfile" "$ruleset_filepath"
-    nft_add_set_elements_from_file_chunked "$tmpfile" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
+    if [ "$type" = "subnets" ]; then
+        nft_add_set_elements_from_file_chunked "$local_list_filepath" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
+    fi
 
-    rm -f "$tmpfile"
+    cp "$local_list_filepath" "$destination"
 }
 
 ## Support functions
@@ -1554,7 +837,7 @@ get_service_proxy_address() {
     local download_lists_via_proxy
     config_get_bool download_lists_via_proxy "settings" "download_lists_via_proxy" 0
     if [ "$download_lists_via_proxy" -eq 1 ]; then
-        echo "$SB_SERVICE_MIXED_INBOUND_ADDRESS:$SB_SERVICE_MIXED_INBOUND_PORT"
+        echo "$XRAY_SERVICE_SOCKS_INBOUND_ADDRESS:$XRAY_SERVICE_SOCKS_INBOUND_PORT"
     else
         echo ""
     fi
@@ -1563,10 +846,9 @@ get_service_proxy_address() {
 get_download_detour_tag() {
     config_get_bool download_lists_via_proxy "settings" "download_lists_via_proxy" 0
     if [ "$download_lists_via_proxy" -eq 1 ]; then
-        local download_lists_via_proxy_section section_outbound_tag
+        local download_lists_via_proxy_section
         config_get download_lists_via_proxy_section "settings" "download_lists_via_proxy_section"
-        section_outbound_tag="$(get_outbound_tag_by_section "$download_lists_via_proxy_section")"
-        echo "$section_outbound_tag"
+        get_outbound_tag_by_section "$download_lists_via_proxy_section"
     else
         echo ""
     fi
@@ -1578,7 +860,9 @@ _determine_first_outbound_section() {
     local connection_type
     config_get connection_type "$section" "connection_type"
 
-    if [ "$connection_type" = "proxy" ] || [ "$connection_type" = "vpn" ]; then
+    # A VPN outbound cannot resolve the check domain: only proxy sections
+    # are suitable for the check traffic
+    if [ "$connection_type" = "proxy" ]; then
         [ -z "$first_section" ] && first_section="$1"
     fi
 }
@@ -1653,8 +937,6 @@ get_service_listen_address() {
 
     echo "$service_listen_address"
 }
-
-## nftables
 nft_list_all_traffic_from_ip() {
     local ip="$1"
 
@@ -1667,24 +949,788 @@ nft_list_all_traffic_from_ip() {
     fi
 }
 
-# Diagnotics
-check_proxy() {
-    local sing_box_config_path
-    config_get sing_box_config_path "settings" "config_path"
+# xray funcs
+xray_configure_service() {
+    local xray_enabled xray_datadir xray_conffiles xray_config_path
 
-    if ! command -v sing-box > /dev/null 2>&1; then
-        nolog "sing-box is not installed"
+    xray_enabled="$(uci -q get xray.enabled.enabled)"
+    if [ "$xray_enabled" != "1" ]; then
+        uci_set "xray" "enabled" "enabled" 1
+        uci_commit "xray"
+        log "xray service has been enabled"
+    fi
+
+    xray_datadir="$(uci -q get xray.config.datadir)"
+    if [ "$xray_datadir" != "$TMP_XRAY_FOLDER" ]; then
+        uci_set "xray" "config" "datadir" "$TMP_XRAY_FOLDER"
+        uci_commit "xray"
+        log "xray asset dir has been set to $TMP_XRAY_FOLDER"
+    fi
+
+    config_get xray_config_path "settings" "config_path" "/etc/xray/config.json"
+    xray_conffiles="$(uci -q get xray.config.conffiles)"
+    if [ "$xray_conffiles" != "$xray_config_path" ]; then
+        uci -q delete xray.config.conffiles
+        uci add_list "xray.config.conffiles=$xray_config_path"
+        uci_commit "xray"
+        log "Configuration file path has been set to $xray_config_path"
+    fi
+
+    [ -f /etc/rc.d/S99xray ] && log "Disable xray autostart" && /etc/init.d/xray disable
+}
+
+xray_init_config() {
+    local config
+    config=$(xray_cm_init_config)
+
+    mkdir -p "$TMP_LISTS_FOLDER/matchers"
+    rm -f "$TMP_LISTS_FOLDER/matchers"/*
+
+    collect_section_matchers
+
+    xray_configure_log
+    xray_configure_inbounds
+    xray_configure_outbounds
+    xray_configure_dns
+    xray_configure_route
+    xray_configure_experimental
+    xray_save_config
+}
+
+xray_configure_log() {
+    log "Configure the log section of an Xray JSON configuration" "debug"
+
+    local log_level
+    config_get log_level "settings" "log_level" "warning"
+    config=$(xray_cm_configure_log "$config" "$log_level")
+}
+
+xray_configure_inbounds() {
+    log "Configure the inbounds section of an Xray JSON configuration" "debug"
+
+    # TProxy inbound: fakedns sniffing restores the domain for fake IP targets
+    config=$(xray_cm_add_inbound "$config" "$(jq -n \
+        --arg tag "$XRAY_TPROXY_INBOUND_TAG" \
+        --arg listen "$XRAY_TPROXY_INBOUND_ADDRESS" \
+        --argjson port "$XRAY_TPROXY_INBOUND_PORT" \
+        '{
+            "listen": $listen,
+            "port": $port,
+            "protocol": "tunnel",
+            "settings": {"followRedirect": true, "allowedNetwork": "tcp,udp"},
+            "sniffing": {"enabled": true, "destOverride": ["fakedns"]},
+            "streamSettings": {"sockopt": {"tproxy": "tproxy"}},
+            "tag": $tag
+        }')")
+
+    # DNS inbound: dnsmasq forwards all queries here
+    config=$(xray_cm_add_inbound "$config" "$(jq -n \
+        --arg tag "$XRAY_DNS_INBOUND_TAG" \
+        --arg listen "$XRAY_DNS_INBOUND_ADDRESS" \
+        --argjson port "$XRAY_DNS_INBOUND_PORT" \
+        '{
+            "listen": $listen,
+            "port": $port,
+            "protocol": "tunnel",
+            "settings": {"allowedNetwork": "tcp,udp"},
+            "tag": $tag
+        }')")
+}
+
+xray_configure_outbounds() {
+    log "Configure the outbounds section of an Xray JSON configuration" "debug"
+
+    # The first outbound is the default one for unmatched traffic
+    config=$(xray_cm_add_outbound "$config" "$(xray_cm_build_freedom_outbound "$XRAY_DIRECT_OUTBOUND_TAG" "" "" "")")
+    config=$(xray_cm_add_outbound "$config" "$(xray_cm_build_blackhole_outbound "$XRAY_BLACKHOLE_OUTBOUND_TAG")")
+    config=$(xray_cm_add_outbound "$config" "$(xray_cm_build_dns_outbound "$XRAY_DNS_OUTBOUND_TAG")")
+
+    xray_configure_fakeip_test_outbound
+
+    config_foreach configure_outbound_handler "section"
+
+    xray_configure_service_socks_inbound
+}
+
+xray_configure_fakeip_test_outbound() {
+    local bootstrap_dns_server real_ip
+    config_get bootstrap_dns_server "settings" "bootstrap_dns_server" "77.88.8.8"
+
+    # Resolve directly via the bootstrap server, bypassing dnsmasq and the
+    # core itself: the Freedom redirect must never dial a fake IP
+    real_ip=$(nslookup "$FAKEIP_TEST_DOMAIN" "$bootstrap_dns_server" 2> /dev/null | awk '/^Address/ && !/127\.0\.0\.1/ {print $NF; exit}')
+
+    if [ -n "$real_ip" ] && is_ipv4 "$real_ip"; then
+        log "The FakeIP check domain resolves to $real_ip" "debug"
+        config=$(xray_cm_add_outbound "$config" "$(xray_cf_build_fakeip_test_outbound "$real_ip")")
+    else
+        log "Cannot resolve the FakeIP check domain via $bootstrap_dns_server, the FakeIP check is disabled until the next start" "warn"
+    fi
+}
+
+xray_configure_service_socks_inbound() {
+    local download_lists_via_proxy
+    config_get_bool download_lists_via_proxy "settings" "download_lists_via_proxy" 0
+    if [ "$download_lists_via_proxy" -eq 1 ]; then
+        local download_lists_via_proxy_section section_outbound_tag
+        config_get download_lists_via_proxy_section "settings" "download_lists_via_proxy_section"
+        section_outbound_tag="$(get_outbound_tag_by_section "$download_lists_via_proxy_section")"
+        config=$(xray_cf_add_socks_inbound_and_route_rule "$config" \
+            "$XRAY_SERVICE_SOCKS_INBOUND_TAG" \
+            "$XRAY_SERVICE_SOCKS_INBOUND_ADDRESS" \
+            "$XRAY_SERVICE_SOCKS_INBOUND_PORT" \
+            "$section_outbound_tag")
+    fi
+
+    config_foreach configure_section_mixed_proxy "section"
+}
+
+configure_section_mixed_proxy() {
+    local section="$1"
+
+    local mixed_inbound_enabled mixed_proxy_port mixed_outbound_tag mixed_proxy_address
+    config_get_bool mixed_inbound_enabled "$section" "mixed_proxy_enabled" 0
+    if [ "$mixed_inbound_enabled" -ne 1 ]; then
+        return 0
+    fi
+
+    mixed_proxy_address="$(get_service_listen_address)"
+    if [ -z "$mixed_proxy_address" ]; then
+        log "Could not determine the listening IP address for the SOCKS proxy. The proxy will not be created." "warn"
         return 1
     fi
 
-    if [ ! -f "$sing_box_config_path" ]; then
+    config_get mixed_proxy_port "$section" "mixed_proxy_port"
+
+    # Xray has no combined inbound: SOCKS on the configured port, HTTP on the next one
+    config=$(xray_cf_add_socks_inbound_and_route_rule "$config" \
+        "$(get_inbound_tag_by_section "$section-mixed")" \
+        "$mixed_proxy_address" \
+        "$mixed_proxy_port" \
+        "$(get_outbound_tag_by_section "$section")")
+
+    local http_tag http_port
+    http_tag="$(get_inbound_tag_by_section "$section-mixed-http")"
+    http_port=$((mixed_proxy_port + 1))
+    config=$(xray_cm_add_inbound "$config" "$(jq -n \
+        --arg tag "$http_tag" --arg listen "$mixed_proxy_address" --argjson port "$http_port" \
+        '{"listen": $listen, "port": $port, "protocol": "http", "settings": {}, "tag": $tag}')")
+    config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+        --arg tag "$http_tag" --arg outbound "$(get_outbound_tag_by_section "$section")" \
+        '{"inboundTag": [$tag], "outboundTag": $outbound}')")
+
+    log "SOCKS proxy of the '$section' section on $mixed_proxy_address:$mixed_proxy_port, HTTP on $((mixed_proxy_port + 1))" "info"
+}
+
+
+
+#######################################
+# Collect the domain and IP matchers of every section into
+# $TMP_LISTS_FOLDER/matchers/<section>.domains.json and .ips.json.
+# The files contain JSON arrays of Xray match strings
+# ("domain:example.com", "ext:geosite.dat:TELEGRAM", CIDRs).
+#######################################
+collect_section_matchers() {
+    config_foreach collect_matchers_for_section "section"
+}
+
+collect_matchers_for_section() {
+    local section="$1"
+
+    local domain_items=""
+    local ip_items=""
+
+    local community_lists
+    config_get community_lists "$section" "community_lists"
+    if [ -n "$community_lists" ]; then
+        config_list_foreach "$section" "community_lists" collect_community_list_matchers
+    fi
+
+    collect_user_domain_list "$section"
+    collect_user_subnet_list "$section"
+
+    local local_domain_lists local_subnet_lists
+    config_get local_domain_lists "$section" "local_domain_lists"
+    config_get local_subnet_lists "$section" "local_subnet_lists"
+    if [ -n "$local_domain_lists" ]; then
+        config_list_foreach "$section" "local_domain_lists" collect_file_domain_matchers "local-$section-"
+    fi
+    if [ -n "$local_subnet_lists" ]; then
+        config_list_foreach "$section" "local_subnet_lists" collect_file_subnet_matchers "local-$section-"
+    fi
+
+    local remote_domain_lists remote_subnet_lists
+    config_get remote_domain_lists "$section" "remote_domain_lists"
+    config_get remote_subnet_lists "$section" "remote_subnet_lists"
+    if [ -n "$remote_domain_lists" ]; then
+        config_list_foreach "$section" "remote_domain_lists" collect_file_domain_matchers "remote-$section-"
+    fi
+    if [ -n "$remote_subnet_lists" ]; then
+        config_list_foreach "$section" "remote_subnet_lists" collect_file_subnet_matchers "remote-$section-"
+    fi
+
+    write_matchers_file "$section" "domains" "$domain_items"
+    write_matchers_file "$section" "ips" "$ip_items"
+}
+
+collect_community_list_matchers() {
+    local service="$1"
+
+    if ! file_exists "$TMP_XRAY_FOLDER/geosite.dat"; then
+        log "geosite.dat is missing, the '$service' community list is skipped" "warn"
+        return 0
+    fi
+
+    domain_items="$domain_items,ext:geosite.dat:$(community_geosite_tag "$service")"
+
+    # Community subnet lists were imported into nft by list_update; the same
+    # files feed the ip matchers of the section
+    local subnet_lst="$TMP_LISTS_FOLDER/community-$service.lst"
+    if file_exists "$subnet_lst"; then
+        local subnets
+        subnets=$(parse_domain_or_subnet_file_to_comma_string "$subnet_lst" "subnets")
+        if [ -n "$subnets" ]; then
+            if [ -z "$ip_items" ]; then
+                ip_items="$subnets"
+            else
+                ip_items="$ip_items,$subnets"
+            fi
+        fi
+    fi
+}
+
+collect_user_domain_list() {
+    local section="$1"
+
+    local user_domain_list_type items
+    config_get user_domain_list_type "$section" "user_domain_list_type" "disabled"
+    [ "$user_domain_list_type" = "disabled" ] && return 0
+
+    case "$user_domain_list_type" in
+    dynamic) config_get items "$section" "user_domains" ;;
+    text) config_get items "$section" "user_domains_text" ;;
+    *) return 0 ;;
+    esac
+
+    items="$(parse_domain_or_subnet_string_to_commas_string "$items" "domains")"
+    [ -z "$items" ] && return 0
+
+    local first=1
+    local item
+    for item in ${items//,/ }; do
+        if [ "$first" -eq 1 ]; then
+            domain_items="domain:$item"
+            first=0
+        else
+            domain_items="$domain_items,domain:$item"
+        fi
+    done
+}
+
+collect_user_subnet_list() {
+    local section="$1"
+
+    local user_subnet_list_type items
+    config_get user_subnet_list_type "$section" "user_subnet_list_type" "disabled"
+    [ "$user_subnet_list_type" = "disabled" ] && return 0
+
+    case "$user_subnet_list_type" in
+    dynamic) config_get items "$section" "user_subnets" ;;
+    text) config_get items "$section" "user_subnets_text" ;;
+    *) return 0 ;;
+    esac
+
+    items="$(parse_domain_or_subnet_string_to_commas_string "$items" "subnets")"
+    [ -z "$items" ] && return 0
+
+    if [ -z "$ip_items" ]; then
+        ip_items="$items"
+    else
+        ip_items="$ip_items,$items"
+    fi
+
+    nft_add_set_elements "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME" "$items"
+}
+
+# Collects matchers from a list file downloaded by list_update
+# (remote-<section>-<name>.lst) or copied by import_local_lists
+# (local-<section>-<name>).
+collect_file_domain_matchers() {
+    local list_file="$1"
+    local prefix="$2"
+
+    collect_file_matchers "$list_file" "domains" "$prefix"
+}
+
+collect_file_subnet_matchers() {
+    local list_file="$1"
+    local prefix="$2"
+
+    collect_file_matchers "$list_file" "subnets" "$prefix"
+}
+
+collect_file_matchers() {
+    local list_file="$1"
+    local type="$2"
+    local prefix="$3"
+
+    local normalized="${list_file#"$prefix"}"
+    local stored_file="$TMP_LISTS_FOLDER/$prefix$normalized"
+
+    if ! file_exists "$stored_file" ]; then
+        log "List file $stored_file not found, skipping" "warn"
+        return 1
+    fi
+
+    while IFS= read -r line; do
+        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "$line" ] && continue
+
+        case "$type" in
+        domains)
+            case "$line" in
+            domain:* | full:* | keyword:* | regexp:* | dotless:*)
+                item="$line"
+                ;;
+            *)
+                if is_domain_suffix "$line"; then
+                    item="domain:$line"
+                else
+                    log "'$line' is not a valid domain" "debug"
+                    continue
+                fi
+                ;;
+            esac
+            if [ -z "$domain_items" ]; then
+                domain_items="$item"
+            else
+                domain_items="$domain_items,$item"
+            fi
+            ;;
+        subnets)
+            if ! is_ipv4_ip_or_ipv4_cidr "$line"; then
+                log "'$line' is not IPv4 or IPv4 CIDR" "debug"
+                continue
+            fi
+            if [ -z "$ip_items" ]; then
+                ip_items="$line"
+            else
+                ip_items="$ip_items,$line"
+            fi
+            ;;
+        esac
+    done < "$stored_file"
+}
+
+write_matchers_file() {
+    local section="$1"
+    local type="$2"
+    local items="$3"
+
+    if [ -z "$items" ]; then
+        echo "[]" > "$TMP_LISTS_FOLDER/matchers/$section.$type.json"
+        return 0
+    fi
+
+    comma_string_to_json_array "$items" > "$TMP_LISTS_FOLDER/matchers/$section.$type.json"
+}
+
+read_section_domains() {
+    local section="$1"
+    cat "$TMP_LISTS_FOLDER/matchers/$section.domains.json" 2> /dev/null || echo "[]"
+}
+
+read_section_ips() {
+    local section="$1"
+    cat "$TMP_LISTS_FOLDER/matchers/$section.ips.json" 2> /dev/null || echo "[]"
+}
+
+configure_outbound_handler() {
+    local section="$1"
+
+    local connection_type
+    config_get connection_type "$section" "connection_type"
+    case "$connection_type" in
+    proxy)
+        log "Configuring outbound in proxy connection type for the $section section"
+        local proxy_config_type
+        config_get proxy_config_type "$section" "proxy_config_type"
+
+        case "$proxy_config_type" in
+        url)
+            local proxy_string
+            config_get proxy_string "$section" "proxy_string"
+
+            if [ -z "$proxy_string" ]; then
+                log "Proxy string is not set. Aborted." "fatal"
+                exit 1
+            fi
+            config=$(xray_cf_add_proxy_outbound "$config" "$section" "$proxy_string")
+            ;;
+        outbound)
+            local json_outbound
+            config_get json_outbound "$section" "outbound_json"
+            config=$(xray_cf_add_json_outbound "$config" "$section" "$json_outbound")
+            ;;
+        selector | urltest)
+            local links links_var strategy interval testing_url fallback_links fallback_tag outbound_tag selector_tag
+            if [ "$proxy_config_type" = "selector" ]; then
+                links_var="selector_proxy_links"
+                strategy="random"
+            else
+                links_var="urltest_proxy_links"
+                strategy="leastPing"
+            fi
+
+            config_get links "$section" "$links_var"
+            config_get fallback_links "$section" "urltest_fallback_links"
+            config_get interval "$section" "urltest_check_interval" "3m"
+            config_get testing_url "$section" "urltest_testing_url" "https://www.gstatic.com/generate_204"
+
+            if [ -z "$links" ]; then
+                log "Proxy links of the $section section are not set. Aborted." "fatal"
+                exit 1
+            fi
+
+            if [ -n "$fallback_links" ]; then
+                log "Fallback links of the $section section: only the first one is used (Xray supports a single fallbackTag)" "warn"
+                config=$(xray_cf_add_proxy_outbound "$config" "$section-fallback-1" "$(echo "$fallback_links" | awk '{print $1}')")
+                fallback_tag="$(get_outbound_tag_by_section "$section-fallback-1")"
+            fi
+
+            local i=1
+            for link in $links; do
+                config="$(xray_cf_add_proxy_outbound "$config" "$section-$i" "$link")"
+                i=$((i + 1))
+            done
+
+            selector_tag="$(get_outbound_tag_by_section "$section")"
+            config="$(xray_cm_add_balancer "$config" "$selector_tag" "$section-" "$strategy" "$fallback_tag")"
+
+            if [ "$strategy" = "leastPing" ]; then
+                config="$(xray_cm_configure_burst_observatory "$config" "$section-" "$testing_url" "$interval")"
+            fi
+            ;;
+        *)
+            log "Unknown proxy configuration type: '$proxy_config_type'. Aborted." "fatal"
+            exit 1
+            ;;
+        esac
+        ;;
+    vpn)
+        log "Configuring outbound in VPN connection type for the $section section"
+        local interface_name domain_lists_present
+
+        config_get interface_name "$section" "interface"
+        if [ -z "$interface_name" ]; then
+            log "VPN interface is not set. Aborted." "fatal"
+            exit 1
+        fi
+
+        # A Freedom outbound dials domains via the built-in DNS, which returns
+        # fake IPs for FakeDNS whitelist domains: an infinite dial loop. VPN
+        # sections support subnet routing only in this version
+        domain_lists_present=$(jq -r 'length' "$TMP_LISTS_FOLDER/matchers/$section.domains.json" 2>/dev/null || echo 0)
+        if [ "$domain_lists_present" != "0" ]; then
+            log "Domain lists of the '$section' VPN section are not supported: move them to a proxy section. Aborted." "fatal"
+            exit 1
+        fi
+
+        config=$(xray_cf_add_interface_outbound "$config" "$section" "$interface_name")
+        ;;
+    block)
+        log "Connection type 'block' detected for the $section section – no outbound will be created (handled via blackhole route rules)"
+        ;;
+    exclusion)
+        log "Connection type 'exclusion' detected for the $section section – no outbound will be created (handled via direct route rules)"
+        ;;
+    *)
+        log "Unknown connection type '$connection_type' for the $section section. Aborted." "fatal"
+        exit 1
+        ;;
+    esac
+}
+
+
+xray_configure_dns() {
+    log "Configure the DNS section of an Xray JSON configuration" "debug"
+
+    local dns_type dns_server bootstrap_dns_server
+    config_get dns_type "settings" "dns_type" "udp"
+    config_get dns_server "settings" "dns_server" "1.1.1.1"
+    config_get bootstrap_dns_server "settings" "bootstrap_dns_server" "77.88.8.8"
+
+    # Only proxied and blocked sections resolve to fake IPs: freedom
+    # outbounds must never dial a fake IP
+    local fake_domains="[]"
+    local section connection_type domains
+    for section in $(get_all_sections_with_domain_lists); do
+        config_get connection_type "$section" "connection_type"
+        case "$connection_type" in
+        proxy | block)
+            domains=$(read_section_domains "$section")
+            if [ "$domains" != "[]" ]; then
+                fake_domains=$(jq -n --argjson cur "$fake_domains" --argjson add "$domains" '$cur + $add')
+            fi
+            ;;
+        esac
+    done
+
+    # The service check domains are routed through the core as well
+    if [ -n "$(get_first_outbound_section)" ]; then
+        fake_domains=$(jq -n --argjson cur "$fake_domains" --arg domain "full:$CHECK_PROXY_IP_DOMAIN" '$cur + [$domain]')
+    fi
+
+    config=$(xray_cm_configure_dns "$config" "$XRAY_DNS_TAG" "UseIPv4" "{}")
+    config=$(xray_cf_add_fakedns_server "$config" "$fake_domains")
+    config=$(xray_cf_add_dns_servers "$config" "$dns_type" "$dns_server" "$bootstrap_dns_server")
+    config=$(xray_cm_configure_fakedns "$config" "$XRAY_FAKEIP_INET4_RANGE" "$XRAY_FAKEIP_POOL_SIZE")
+}
+
+get_all_sections_with_domain_lists() {
+    local section
+    for section in $(uci show perekop 2>/dev/null | grep "^perekop\..*\.type='section'" | cut -d. -f2 | cut -d= -f1 | cut -d"'" -f1); do
+        if section_has_enabled_lists "$section"; then
+            echo "$section"
+        fi
+    done
+}
+
+xray_configure_route() {
+    log "Configure the routing section of an Xray JSON configuration" "debug"
+
+    # DNS queries received by the dns inbound are answered by the DNS outbound
+    config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+        --arg tag "$XRAY_DNS_INBOUND_TAG" --arg outbound "$XRAY_DNS_OUTBOUND_TAG" \
+        '{"inboundTag": [$tag], "outboundTag": $outbound}')")
+
+    # DNS queries of the DNS module itself go directly
+    config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+        --arg tag "$XRAY_DNS_TAG" --arg outbound "$XRAY_DIRECT_OUTBOUND_TAG" \
+        '{"inboundTag": [$tag], "outboundTag": $outbound}')")
+
+    local disable_quic
+    config_get_bool disable_quic "settings" "disable_quic" 0
+    if [ "$disable_quic" -eq 1 ]; then
+        config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+            --arg tag "$XRAY_TPROXY_INBOUND_TAG" --arg outbound "$XRAY_BLACKHOLE_OUTBOUND_TAG" \
+            '{"inboundTag": [$tag], "network": "udp", "port": 443, "outboundTag": $outbound}')")
+    fi
+
+    # FakeIP check service: dnsmasq pins the domain to a fixed fake IP, the
+    # redirect outbound dials the real service on port 8443
+    if jq -e --arg tag "$XRAY_FAKEIP_TEST_OUTBOUND_TAG" \
+        '.outbounds[] | select(.tag == $tag)' > /dev/null 2>&1 <<< "$config"; then
+        config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+            --arg tag "$XRAY_TPROXY_INBOUND_TAG" --arg outbound "$XRAY_FAKEIP_TEST_OUTBOUND_TAG" \
+            '{"inboundTag": [$tag], "ip": ["198.18.255.254/32"], "outboundTag": $outbound}')")
+    fi
+
+    # The check domain reports the exit IP of the first proxy section
+    local first_outbound_section first_outbound_tag
+    first_outbound_section="$(get_first_outbound_section)"
+    if [ -n "$first_outbound_section" ]; then
+        first_outbound_tag="$(get_outbound_tag_by_section "$first_outbound_section")"
+        config=$(xray_cm_add_route_rule "$config" "$(xray_cf_build_section_rule \
+            "$XRAY_TPROXY_INBOUND_TAG" "$first_outbound_tag" "domain" "[\"full:$CHECK_PROXY_IP_DOMAIN\"]" 0)")
+    fi
+
+    local routing_excluded_ips
+    config_get routing_excluded_ips "settings" "routing_excluded_ips"
+    if [ -n "$routing_excluded_ips" ]; then
+        local ips_json
+        ips_json=$(uci -q get perekop.settings.routing_excluded_ips | jq -R -s 'split("\n")[:-1] | map(select(length > 0))')
+        config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+            --arg tag "$XRAY_TPROXY_INBOUND_TAG" --arg outbound "$XRAY_DIRECT_OUTBOUND_TAG" \
+            --argjson ips "$ips_json" \
+            '{"inboundTag": [$tag], "source": $ips, "outboundTag": $outbound}')")
+    fi
+
+    configure_common_block_rules
+    configure_common_exclusion_rules
+
+    config_foreach include_fully_routed_ips "section"
+    config_foreach configure_routing_for_section_lists "section"
+}
+
+include_fully_routed_ips() {
+    local section="$1"
+
+    local fully_routed_ips
+    config_get fully_routed_ips "$section" "fully_routed_ips"
+    if [ -z "$fully_routed_ips" ]; then
+        return 0
+    fi
+
+    local ips_json
+    ips_json=$(uci -q get "perekop.$section.fully_routed_ips" | jq -R -s 'split("\n")[:-1] | map(select(length > 0))')
+    if [ "$ips_json" = "[]" ]; then
+        return 0
+    fi
+
+    nft_list_all_traffic_from_ip_items "$section"
+
+    config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+        --arg tag "$XRAY_TPROXY_INBOUND_TAG" \
+        --arg outbound "$(get_outbound_tag_by_section "$section")" \
+        --argjson ips "$ips_json" \
+        '{"inboundTag": [$tag], "source": $ips, "outboundTag": $outbound}')")
+}
+
+nft_list_all_traffic_from_ip_items() {
+    local section="$1"
+    local ip
+
+    for ip in $(uci -q get "perekop.$section.fully_routed_ips" 2>/dev/null); do
+        if ! nft list chain inet "$NFT_TABLE_NAME" mangle | grep -q "ip saddr $ip"; then
+            nft insert rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip saddr "$ip" \
+                meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
+            nft insert rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip saddr "$ip" \
+                meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
+            nft insert rule inet "$NFT_TABLE_NAME" mangle ip saddr "$ip" ip daddr @localv4 return
+        fi
+    done
+}
+
+configure_common_block_rules() {
+    local block_section domains ips domains_json ips_json
+
+    for block_section in $(get_sections_by_connection_type "block"); do
+        if ! section_has_enabled_lists "$block_section"; then
+            continue
+        fi
+
+        domains=$(read_section_domains "$block_section")
+        ips=$(read_section_ips "$block_section")
+
+        [ "$domains" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_BLACKHOLE_OUTBOUND_TAG" "domain" "$domains" 0)")
+        [ "$ips" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_BLACKHOLE_OUTBOUND_TAG" "ip" "$ips" 0)")
+    done
+}
+
+configure_common_exclusion_rules() {
+    local exclusion_section domains ips
+
+    for exclusion_section in $(get_sections_by_connection_type "exclusion"); do
+        if ! section_has_enabled_lists "$exclusion_section"; then
+            continue
+        fi
+
+        # Exclusion domains are not in the FakeDNS whitelist: they resolve to
+        # real IPs and bypass the core entirely, the desired behavior
+        domains=$(read_section_domains "$exclusion_section")
+        ips=$(read_section_ips "$exclusion_section")
+
+        [ "$ips" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_DIRECT_OUTBOUND_TAG" "ip" "$ips" 0)")
+    done
+}
+
+configure_routing_for_section_lists() {
+    local section="$1"
+
+    if ! section_has_enabled_lists "$section"; then
+        log "Section '$section' does not have any enabled list, skipping..." "warn"
+        return 0
+    fi
+
+    local section_connection_type domains ips
+    config_get section_connection_type "$section" "connection_type"
+
+    case "$section_connection_type" in
+    proxy | vpn)
+        local use_balancer=0
+        local proxy_config_type
+        config_get proxy_config_type "$section" "proxy_config_type"
+        if [ "$section_connection_type" = "proxy" ] &&
+            { [ "$proxy_config_type" = "selector" ] || [ "$proxy_config_type" = "urltest" ]; }; then
+            use_balancer=1
+        fi
+
+        local outbound_tag
+        outbound_tag=$(get_outbound_tag_by_section "$section")
+
+        domains=$(read_section_domains "$section")
+        ips=$(read_section_ips "$section")
+
+        [ "$domains" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$outbound_tag" "domain" "$domains" "$use_balancer")")
+        [ "$ips" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$outbound_tag" "ip" "$ips" "$use_balancer")")
+        ;;
+    block | exclusion)
+        # Handled by the common rules
+        ;;
+    *)
+        log "Unsupported '$section_connection_type' connection type. Skipping routing for '$section' section" "fatal"
+        exit 1
+        ;;
+    esac
+}
+
+xray_configure_experimental() {
+    log "Configure the experimental sections of an Xray JSON configuration" "debug"
+
+    config=$(xray_cm_configure_api "$config" "api" "$XRAY_API_LISTEN_ADDRESS:$XRAY_API_LISTEN_PORT")
+}
+
+xray_save_config() {
+    local xray_config_path temp_file_path current_config_hash temp_config_hash
+    config_get xray_config_path "settings" "config_path" "/etc/xray/config.json"
+    temp_file_path="$(mktemp)"
+
+    log "Save Xray temporary config to $temp_file_path" "debug"
+    xray_cm_save_config_to_file "$config" "$temp_file_path"
+
+    xray_cm_check_config "$temp_file_path"
+
+    current_config_hash=$(md5sum "$xray_config_path" 2> /dev/null | awk '{print $1}')
+    temp_config_hash=$(md5sum "$temp_file_path" | awk '{print $1}')
+    if [ "$current_config_hash" != "$temp_config_hash" ]; then
+        log "Xray configuration has changed and will be updated"
+        mv "$temp_file_path" "$xray_config_path"
+    else
+        log "Xray configuration is unchanged"
+        rm -f "$temp_file_path"
+    fi
+}
+
+xray_apply_balancer_overrides() {
+    # Re-apply the manually selected outbounds after a core restart:
+    # "xray api bo" overrides live in the core memory only
+    local section selector_selected balancer_tag
+
+    for section in $(uci show perekop 2>/dev/null | grep "^perekop\..*\.type='section'" | cut -d. -f2 | cut -d= -f1 | cut -d"'" -f1); do
+        selector_selected="$(uci -q get "perekop.$section.selector_selected")"
+        [ -z "$selector_selected" ] && continue
+
+        balancer_tag="$(get_outbound_tag_by_section "$section")"
+        xray api bo -s "$XRAY_API_LISTEN_ADDRESS:$XRAY_API_LISTEN_PORT" -b "$balancer_tag" "$selector_selected" > /dev/null 2>&1 \
+            && log "The $balancer_tag balancer is pinned to $selector_selected" "debug"
+    done
+}
+
+
+# Diagnostics
+check_proxy() {
+    local xray_config_path
+    config_get xray_config_path "settings" "config_path" "/etc/xray/config.json"
+
+    if ! command -v xray > /dev/null 2>&1; then
+        nolog "xray is not installed"
+        return 1
+    fi
+
+    if [ ! -f "$xray_config_path" ]; then
         nolog "Configuration file not found"
         return 1
     fi
 
-    nolog "Checking sing-box configuration..."
+    nolog "Checking xray configuration..."
 
-    if ! sing-box -c "$sing_box_config_path" check > /dev/null; then
+    if ! xray run -test -c "$xray_config_path" > /dev/null 2>&1; then
         nolog "Invalid configuration"
         return 1
     fi
@@ -1693,53 +1739,85 @@ check_proxy() {
     walk(
         if type == "object" then
             with_entries(
-                if .key == "uuid" then
+                if .key == "id" then
                     .value = "MASKED"
-                elif .key == "server" then
+                elif .key == "address" then
                     .value = "MASKED"
-                elif .key == "server_name" then
+                elif .key == "serverName" then
                     .value = "MASKED"
                 elif .key == "password" then
                     .value = "MASKED"
-                elif .key == "public_key" then
+                elif .key == "publicKey" then
                     .value = "MASKED"
-                elif .key == "short_id" then
+                elif .key == "shortId" then
                     .value = "MASKED"
                 elif .key == "fingerprint" then
                     .value = "MASKED"
-                elif .key == "server_port" then
+                elif .key == "port" then
+                    .value = "MASKED"
+                elif .key == "auth" then
+                    .value = "MASKED"
+                elif .key == "pass" then
                     .value = "MASKED"
                 else . end
             )
         else . end
-    )' "$sing_box_config_path"
+    )' "$xray_config_path"
 
     nolog "Checking proxy connection..."
 
-    for attempt in $(seq 1 5); do
-        response=$(sing-box tools fetch ifconfig.me -D /etc/sing-box 2> /dev/null)
-        if echo "$response" | grep -q "^<html\|403 Forbidden"; then
-            continue
-        fi
-        if [[ $response =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            ip=$(echo "$response" | sed -n 's/^[0-9]\+\.[0-9]\+\.[0-9]\+\.\([0-9]\+\)$/X.X.X.\1/p')
-            nolog "$ip - should match proxy IP"
-            return 0
-        elif echo "$response" | grep -q "^[0-9a-fA-F:]*::[0-9a-fA-F:]*$\|^[0-9a-fA-F:]\+$"; then
-            ip=$(echo "$response" | sed 's/\([0-9a-fA-F]\+:[0-9a-fA-F]\+:[0-9a-fA-F]\+\):.*/\1:XXXX:XXXX:XXXX/')
-            nolog "$ip - should match proxy IP"
-            return 0
-        fi
-        if [ $attempt -eq 5 ]; then
-            nolog "Failed to get valid IP address after 5 attempts"
-            if [ -z "$response" ]; then
-                nolog "Error: Empty response"
-            else
-                nolog "Error response: $response"
-            fi
-            return 1
+    local first_outbound_section first_outbound_tag
+    first_outbound_section="$(get_first_outbound_section)"
+    if [ -z "$first_outbound_section" ]; then
+        nolog "No proxy section found, nothing to check"
+        return 1
+    fi
+    first_outbound_tag="$(get_outbound_tag_by_section "$first_outbound_section")"
+
+    # Xray has no "tools fetch": a temporary core instance with a SOCKS
+    # inbound routed to the first proxy outbound is started instead
+    local temp_config temp_port temp_pid response
+    temp_config=$(mktemp)
+    temp_port=$((20000 + RANDOM % 20000))
+
+    jq -n \
+        --argjson outbound "$(jq -c --arg tag "$first_outbound_tag" '.outbounds[] | select(.tag == $tag)' "$xray_config_path")" \
+        --argjson port "$temp_port" \
+        '{
+            "log": {"loglevel": "error"},
+            "inbounds": [{"listen": "127.0.0.1", "port": $port, "protocol": "socks", "settings": {"auth": "noauth", "udp": false}, "tag": "chk"}],
+            "outbounds": [$outbound, {"protocol": "freedom", "tag": "direct"}],
+            "routing": {"rules": [{"inboundTag": ["chk"], "outboundTag": ($outbound.tag // "direct")}]}
+        }' > "$temp_config"
+
+    xray run -c "$temp_config" > /dev/null 2>&1 &
+    temp_pid=$!
+
+    local attempt
+    for attempt in 1 2 3 4 5; do
+        sleep 1
+        response=$(curl -m 8 -s --socks5-hostname "127.0.0.1:$temp_port" ifconfig.me 2> /dev/null)
+        if [ -n "$response" ]; then
+            break
         fi
     done
+
+    kill "$temp_pid" 2> /dev/null
+    rm -f "$temp_config"
+
+    if echo "$response" | grep -q "^[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
+        nolog "$response - should match proxy IP"
+        return 0
+    fi
+
+    if echo "$response" | grep -q "^[0-9a-fA-F:]*:[0-9a-fA-F:]*$"; then
+        nolog "$response - should match proxy IP"
+        return 0
+    fi
+
+    nolog "Failed to get a valid response through the proxy"
+    [ -z "$response" ] || nolog "Error response: $response"
+    return 1
 }
 
 check_nft() {
@@ -1821,7 +1899,7 @@ check_logs() {
     fi
 
     local logs
-    logs=$(logread | grep -E "perekop|sing-box")
+    logs=$(logread | grep -E "perekop|xray")
 
     if [ -z "$logs" ]; then
         nolog "Logs not found"
@@ -1840,12 +1918,13 @@ check_logs() {
     fi
 }
 
-show_sing_box_config() {
-    local sing_box_config_path
-    config_get sing_box_config_path "settings" "config_path"
-    nolog "Current sing-box configuration:"
 
-    if [ ! -f "$sing_box_config_path" ]; then
+show_xray_config() {
+    local xray_config_path
+    config_get xray_config_path "settings" "config_path" "/etc/xray/config.json"
+    nolog "Current xray configuration:"
+
+    if [ ! -f "$xray_config_path" ]; then
         nolog "Configuration file not found"
         return 1
     fi
@@ -1854,27 +1933,116 @@ show_sing_box_config() {
     walk(
         if type == "object" then
             with_entries(
-                if .key == "uuid" then
+                if .key == "id" then
                     .value = "MASKED"
-                elif .key == "server" then
+                elif .key == "address" then
                     .value = "MASKED"
-                elif .key == "server_name" then
+                elif .key == "serverName" then
                     .value = "MASKED"
                 elif .key == "password" then
                     .value = "MASKED"
-                elif .key == "public_key" then
+                elif .key == "publicKey" then
                     .value = "MASKED"
-                elif .key == "short_id" then
+                elif .key == "shortId" then
                     .value = "MASKED"
                 elif .key == "fingerprint" then
                     .value = "MASKED"
-                elif .key == "server_port" then
+                elif .key == "auth" then
+                    .value = "MASKED"
+                elif .key == "pass" then
                     .value = "MASKED"
                 else . end
             )
         else . end
-    )' "$sing_box_config_path"
+    )' "$xray_config_path"
 }
+
+show_xray_version() {
+    xray_get_version
+}
+
+get_xray_features() {
+    local features="["
+    local first=1
+
+    if xray_has_feature "proxy.hysteria2"; then
+        features="$features\"proxy.hysteria2\""
+        first=0
+    fi
+
+    if xray_has_feature "tls.ech"; then
+        [ "$first" -eq 0 ] && features="$features,"
+        features="$features\"tls.ech\""
+        first=0
+    fi
+
+    echo "$features]"
+}
+
+get_system_info() {
+    local perekop_version perekop_latest_version luci_app_version xray_version openwrt_version device_model
+
+    perekop_version="$PEREKOP_VERSION"
+
+    perekop_latest_version=$(curl -m 3 -s https://api.github.com/repos/tangenx/perekop/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+    [ -z "$perekop_latest_version" ] && perekop_latest_version="unknown"
+
+    if [ -f /www/luci-static/resources/view/perekop/main.js ]; then
+        luci_app_version=$(grep 'var PEREKOP_LUCI_APP_VERSION' /www/luci-static/resources/view/perekop/main.js | cut -d'"' -f2)
+    else
+        luci_app_version="not installed"
+    fi
+
+    xray_version=$(xray_get_version)
+    [ -z "$xray_version" ] && xray_version="not installed"
+
+    if [ -f /etc/os-release ]; then
+        openwrt_version=$(grep OPENWRT_RELEASE /etc/os-release | cut -d'"' -f2)
+        [ -z "$openwrt_version" ] && openwrt_version="unknown"
+    else
+        openwrt_version="unknown"
+    fi
+
+    if [ -f /tmp/sysinfo/model ]; then
+        device_model=$(cat /tmp/sysinfo/model)
+        [ -z "$device_model" ] && device_model="unknown"
+    else
+        device_model="unknown"
+    fi
+
+    echo "{\"perekop_version\": \"$perekop_version\", \"perekop_latest_version\": \"$perekop_latest_version\", \"luci_app_version\": \"$luci_app_version\", \"xray_version\": \"$xray_version\", \"openwrt_version\": \"$openwrt_version\", \"device_model\": \"$device_model\"}" | jq .
+}
+
+get_xray_status() {
+    local running=0
+    local enabled=0
+    local status=""
+
+    if [ -x /etc/rc.d/S99xray ]; then
+        enabled=1
+    fi
+
+    if pgrep -f "xray run" > /dev/null 2>&1; then
+        running=1
+    fi
+
+    if [ $running -eq 1 ]; then
+        if [ $enabled -eq 1 ]; then
+            status="running & enabled"
+        else
+            status="running but disabled"
+        fi
+    else
+        if [ $enabled -eq 1 ]; then
+            status="stopped but enabled"
+        else
+            status="stopped & disabled"
+        fi
+    fi
+
+    echo "{\"running\":$running,\"enabled\":$enabled,\"status\":\"$status\"}"
+}
+
 
 show_config() {
     if [ ! -f "$PEREKOP_CONFIG" ]; then
@@ -1891,8 +2059,7 @@ show_config() {
         -e 's/\(list selector_proxy_links\).*/\1 '\''MASKED'\''/g' \
         -e "s@\\(option dns_server '[^/]*\\)/[^']*'@\\1/MASKED'@g" \
         -e "s@\\(option domain_resolver_dns_server '[^/]*\\)/[^']*'@\\1/MASKED'@g" \
-        -e 's/\(option yacd_secret_key\).*/\1 '\''MASKED'\''/g' \
-        "$PEREKOP_CONFIG" > "$tmp_config"
+            "$PEREKOP_CONFIG" > "$tmp_config"
 
     cat "$tmp_config"
     rm -f "$tmp_config"
@@ -1900,12 +2067,6 @@ show_config() {
 
 show_version() {
     echo "$PEREKOP_VERSION"
-}
-
-show_sing_box_version() {
-    local version
-    version=$(sing-box version | head -n 1 | awk '{print $3}')
-    echo "$version"
 }
 
 show_system_info() {
@@ -1916,92 +2077,7 @@ show_system_info() {
     cat /tmp/sysinfo/model
 }
 
-# Prints the features of the installed sing-box as a JSON array
-get_sing_box_features() {
-    sing_box_get_features | jq -R -s -c 'rtrimstr("\n") | split(",") | map(select(length > 0))'
-}
-
-get_system_info() {
-    local perekop_version perekop_latest_version luci_app_version sing_box_version openwrt_version device_model
-
-    perekop_version="$PEREKOP_VERSION"
-
-    perekop_latest_version=$(curl -m 3 -s https://api.github.com/repos/itdoginfo/perekop/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
-    [ -z "$perekop_latest_version" ] && perekop_latest_version="unknown"
-
-    if [ -f /www/luci-static/resources/view/perekop/main.js ]; then
-        luci_app_version=$(grep 'var PEREKOP_LUCI_APP_VERSION' /www/luci-static/resources/view/perekop/main.js | cut -d'"' -f2)
-    else
-        luci_app_version="not installed"
-    fi
-
-    if command -v sing-box > /dev/null 2>&1; then
-        sing_box_version=$(sing-box version 2> /dev/null | head -n 1 | awk '{print $3}')
-        [ -z "$sing_box_version" ] && sing_box_version="unknown"
-    else
-        sing_box_version="not installed"
-    fi
-
-    if [ -f /etc/os-release ]; then
-        openwrt_version=$(grep OPENWRT_RELEASE /etc/os-release | cut -d'"' -f2)
-        [ -z "$openwrt_version" ] && openwrt_version="unknown"
-    else
-        openwrt_version="unknown"
-    fi
-
-    if [ -f /tmp/sysinfo/model ]; then
-        device_model=$(cat /tmp/sysinfo/model)
-        [ -z "$device_model" ] && device_model="unknown"
-    else
-        device_model="unknown"
-    fi
-
-    echo "{\"perekop_version\": \"$perekop_version\", \"perekop_latest_version\": \"$perekop_latest_version\", \"luci_app_version\": \"$luci_app_version\", \"sing_box_version\": \"$sing_box_version\", \"openwrt_version\": \"$openwrt_version\", \"device_model\": \"$device_model\"}" | jq .
-}
-
-get_sing_box_status() {
-    local running=0
-    local enabled=0
-    local status=""
-    local version=""
-    local dns_configured=0
-
-    # Check if service is enabled
-    if [ -x /etc/rc.d/S99sing-box ]; then
-        enabled=1
-    fi
-
-    # Check if service is running
-    if pgrep -f "sing-box" > /dev/null; then
-        running=1
-        version=$(sing-box version | head -n 1 | awk '{print $3}')
-    fi
-
-    # Check DNS configuration
-    local dns_server
-    dns_server=$(uci get dhcp.@dnsmasq[0].server 2> /dev/null)
-    if [ "$dns_server" = "127.0.0.42" ]; then
-        dns_configured=1
-    fi
-
-    # Format status message
-    if [ $running -eq 1 ]; then
-        if [ $enabled -eq 1 ]; then
-            status="running & enabled"
-        else
-            status="running but disabled"
-        fi
-    else
-        if [ $enabled -eq 1 ]; then
-            status="stopped but enabled"
-        else
-            status="stopped & disabled"
-        fi
-    fi
-
-    echo "{\"running\":$running,\"enabled\":$enabled,\"status\":\"$status\",\"dns_configured\":$dns_configured}"
-}
-
+# Prints the features of the installed Xray as a JSON array
 get_status() {
     local enabled=0
     local status=""
@@ -2051,10 +2127,6 @@ check_dns_available() {
         fi
 
         if dig @"$dns_server" "$domain" +https="$doh_path" +timeout=2 +tries=1 > /dev/null 2>&1; then
-            dns_status=1
-        fi
-    elif [ "$dns_type" = "dot" ]; then
-        if dig @"$dns_server" "$domain" +tls +timeout=2 +tries=1 > /dev/null 2>&1; then
             dns_status=1
         fi
     elif [ "$dns_type" = "udp" ]; then
@@ -2189,42 +2261,171 @@ check_nft_rules() {
     echo "{\"table_exist\":$table_exist,\"rules_mangle_exist\":$rules_mangle_exist,\"rules_mangle_counters\":$rules_mangle_counters,\"rules_mangle_output_exist\":$rules_mangle_output_exist,\"rules_mangle_output_counters\":$rules_mangle_output_counters,\"rules_proxy_exist\":$rules_proxy_exist,\"rules_proxy_counters\":$rules_proxy_counters,\"rules_other_mark_exist\":$rules_other_mark_exist}" | jq .
 }
 
-check_sing_box() {
-    local sing_box_installed=0
-    local sing_box_version_ok=0
-    local sing_box_service_exist=0
-    local sing_box_autostart_disabled=0
-    local sing_box_process_running=0
-    local sing_box_ports_listening=0
+check_fakeip() {
+    curl -m 3 -s "https://$FAKEIP_TEST_DOMAIN/check" | jq .
+}
 
-    # Check if sing-box is installed
-    if command -v sing-box > /dev/null 2>&1; then
-        sing_box_installed=1
+#######################################
+#######################################
+# Xray gRPC API interface for the dashboard
+# Arguments:
+#   $1 - Action: get_traffic, get_proxies, set_group_proxy
+#   $2 - Group tag (selector section name) for set_group_proxy
+#   $3 - Target outbound tag for set_group_proxy
+# Outputs:
+#   JSON formatted response
+# Usage:
+#   xray_api get_traffic
+#   xray_api get_proxies
+#   xray_api set_group_proxy <group> <proxy_tag|"">
+#######################################
+XRAY_API_URL="$XRAY_API_LISTEN_ADDRESS:$XRAY_API_LISTEN_PORT"
 
-        # Check version (must be >= 1.12.4)
+xray_api() {
+    local action="$1"
+    case "$action" in
+    get_traffic)
+        xray api statsquery -s "$XRAY_API_URL" 2> /dev/null | jq '{
+            uplink: ([.stat[]? | select(.name == "inbound>>>tproxy-in>>>traffic>>>uplink") | .value] | add // 0),
+            downlink: ([.stat[]? | select(.name == "inbound>>>tproxy-in>>>traffic>>>downlink") | .value] | add // 0),
+            outbound: (.stat // []) | map(select(.name | startswith("outbound>>>"))) |
+                map({key: (.name | capture("outbound>>>(?<tag>[^>]+)>>>traffic>>>(?<dir>\\\\w+)") | .tag),
+                     value: {direction: (.name | capture("outbound>>>(?<tag>[^>]+)>>>traffic>>>(?<dir>\\\\w+)") | .dir), count: .value}}) |
+                group_by(.key) | map({key: .[0].key, value: (map({(.value.direction): .value.count}) | add)}) | {(.key): .value}) | add
+        }'
+        ;;
+
+    get_proxies)
+        xray_api_get_proxies
+        ;;
+
+    set_group_proxy)
+        xray_api_set_group_proxy "$2" "$3"
+        ;;
+
+    *)
+        echo '{"error":"unknown action","available":["get_traffic","get_proxies","set_group_proxy"]}' | jq .
+        return 1
+        ;;
+    esac
+}
+
+xray_api_get_proxies() {
+    # Groups with the current selection and their outbounds, based on UCI and
+    # the live balancer state
+    local section balancer_info override selected
+    local result="{}"
+
+    for section in $(uci show perekop 2>/dev/null | grep "^perekop\..*\.type='section'" | cut -d. -f2 | cut -d= -f1 | cut -d"'" -f1); do
+        local connection_type proxy_config_type
+        config_get connection_type "$section" "connection_type"
+        config_get proxy_config_type "$section" "proxy_config_type"
+
+        [ "$connection_type" != "proxy" ] && continue
+        case "$proxy_config_type" in
+        selector | urltest) ;;
+        *) continue ;;
+        esac
+
+        local links_var links outbounds_json="[]" i=1 outbound_tag
+        if [ "$proxy_config_type" = "selector" ]; then
+            links_var="selector_proxy_links"
+        else
+            links_var="urltest_proxy_links"
+        fi
+        config_get links "$section" "$links_var"
+
+        for link in $links; do
+            outbound_tag="$(get_outbound_tag_by_section "$section-$i")"
+            outbounds_json=$(jq -n --argjson cur "$outbounds_json" --arg tag "$outbound_tag" '$cur + [$tag]')
+            i=$((i + 1))
+        done
+
+        # The override target from the live balancer, "" when automatic
+        override=$(xray api bi -json -s "$XRAY_API_URL" "$(get_outbound_tag_by_section "$section")" 2> /dev/null |
+            jq -r '.balancer.override.target // ""')
+        selected="$(uci -q get "perekop.$section.selector_selected")"
+        [ -z "$selected" ] && selected="$override"
+
+        result=$(jq -n --argjson cur "$result" --arg section "$section" \
+            --argjson outbounds "$outbounds_json" --arg selected "$selected" \
+            '$cur + {($section): {"outbounds": $outbounds, "selected": $selected}}')
+    done
+
+    echo "$result" | jq .
+}
+
+xray_api_set_group_proxy() {
+    local group="$1"
+    local proxy_tag="$2"
+
+    if [ -z "$group" ]; then
+        echo '{"error":"group required"}' | jq .
+        return 1
+    fi
+
+    local balancer_tag
+    balancer_tag="$(get_outbound_tag_by_section "$group")"
+
+    if [ -z "$proxy_tag" ] || [ "$proxy_tag" = "auto" ]; then
+        # Remove the override, the balancer strategy takes over again
+        if xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" -r > /dev/null 2>&1; then
+            uci -q delete "perekop.$group.selector_selected"
+            uci -q commit perekop
+            echo "{\"success\":true,\"group\":\"$group\",\"proxy\":\"auto\"}" | jq .
+            return 0
+        fi
+        echo "{\"success\":false,\"error\":\"balancer_override_failed\"}" | jq .
+        return 1
+    fi
+
+    if ! xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$proxy_tag" > /dev/null 2>&1; then
+        echo "{\"success\":false,\"error\":\"balancer_override_failed\"}" | jq .
+        return 1
+    fi
+
+    uci set "perekop.$group.selector_selected=$proxy_tag"
+    uci commit perekop
+
+    echo "{\"success\":true,\"group\":\"$group\",\"proxy\":\"$proxy_tag\"}" | jq .
+}
+
+
+check_xray() {
+    local xray_installed=0
+    local xray_version_ok=0
+    local xray_service_exist=0
+    local xray_autostart_disabled=0
+    local xray_process_running=0
+    local xray_ports_listening=0
+
+    # Check if xray is installed
+    if command -v xray > /dev/null 2>&1; then
+        xray_installed=1
+
+        # Check version (must be >= XRAY_REQUIRED_VERSION)
         local version
-        version=$(sing-box version 2> /dev/null | head -n 1 | awk '{print $3}')
-        version="${version#v}"
-        if [ -n "$version" ] && is_min_package_version "$version" "1.12.4"; then
-            sing_box_version_ok=1
+        version=$(xray_get_version)
+        if [ -n "$version" ] && is_min_package_version "$version" "$XRAY_REQUIRED_VERSION"; then
+            xray_version_ok=1
         fi
     fi
 
     # Check if service exists
-    if [ -f /etc/init.d/sing-box ]; then
-        sing_box_service_exist=1
+    if [ -f /etc/init.d/xray ]; then
+        xray_service_exist=1
 
-        if ! /etc/init.d/sing-box enabled 2> /dev/null; then
-            sing_box_autostart_disabled=1
+        if ! /etc/init.d/xray enabled 2> /dev/null; then
+            xray_autostart_disabled=1
         fi
     fi
 
     # Check if process is running
-    if pgrep "sing-box" > /dev/null 2>&1; then
-        sing_box_process_running=1
+    if pgrep -f "xray run" > /dev/null 2>&1; then
+        xray_process_running=1
     fi
 
-    # Check if sing-box is listening on required ports
+    # Check if xray is listening on required ports
     local port_53_ok=0
     local port_1602_ok=0
 
@@ -2238,142 +2439,12 @@ check_sing_box() {
 
     # Both ports must be listening
     if [ "$port_53_ok" = "1" ] && [ "$port_1602_ok" = "1" ]; then
-        sing_box_ports_listening=1
+        xray_ports_listening=1
     fi
 
-    echo "{\"sing_box_installed\":$sing_box_installed,\"sing_box_version_ok\":$sing_box_version_ok,\"sing_box_service_exist\":$sing_box_service_exist,\"sing_box_autostart_disabled\":$sing_box_autostart_disabled,\"sing_box_process_running\":$sing_box_process_running,\"sing_box_ports_listening\":$sing_box_ports_listening}" | jq .
+    echo "{\"xray_installed\":$xray_installed,\"xray_version_ok\":$xray_version_ok,\"xray_service_exist\":$xray_service_exist,\"xray_autostart_disabled\":$xray_autostart_disabled,\"xray_process_running\":$xray_process_running,\"xray_ports_listening\":$xray_ports_listening}" | jq .
 }
 
-check_fakeip() {
-    curl -m 3 -s "https://$FAKEIP_TEST_DOMAIN/check" | jq .
-}
-
-#######################################
-# Clash API interface for managing proxies and groups
-# Arguments:
-#   $1 - Action: get_proxies, get_proxy_latency, get_group_latency, set_group_proxy
-#   $2 - Proxy/Group tag (required for latency and set operations)
-#   $3 - Timeout in ms (optional, defaults: 2000 for proxy, 5000 for group) or target proxy tag for set_group_proxy
-# Outputs:
-#   JSON formatted response
-# Usage:
-#   clash_api get_proxies
-#   clash_api get_proxy_latency <proxy_tag> [timeout]
-#   clash_api get_group_latency <group_tag> [timeout]
-#   clash_api set_group_proxy <group_tag> <proxy_tag>
-#######################################
-
-clash_api() {
-    local action="$1"
-    local clash_api_controller_address CLASH_URL TEST_URL
-    clash_api_controller_address="$(get_service_listen_address)"
-    if [ -z "$clash_api_controller_address" ]; then
-        clash_api_controller_address="127.0.0.1"
-    fi
-    CLASH_URL="$clash_api_controller_address:$SB_CLASH_API_CONTROLLER_PORT"
-    TEST_URL="https://www.gstatic.com/generate_204"
-
-    local enable_yacd_wan_access yacd_secret_key auth_header
-    config_get_bool enable_yacd_wan_access "settings" "enable_yacd_wan_access" 0
-    config_get yacd_secret_key "settings" "yacd_secret_key"
-
-    if [ "$enable_yacd_wan_access" -eq 1 ]; then
-        auth_header="Authorization: Bearer $yacd_secret_key"
-    else
-        auth_header=""
-    fi
-
-    case "$action" in
-    get_proxies)
-        curl -s --header "$auth_header" "$CLASH_URL/proxies" | jq .
-        ;;
-
-    get_proxy_latency)
-        local proxy_tag="$2"
-        local timeout="${3:-2000}"
-
-        if [ -z "$proxy_tag" ]; then
-            echo '{"error":"proxy_tag required"}' | jq .
-            return 1
-        fi
-
-        curl -G -s "$CLASH_URL/proxies/$proxy_tag/delay" \
-            --header "$auth_header" \
-            --data-urlencode "url=$TEST_URL" \
-            --data-urlencode "timeout=$timeout" | jq .
-        ;;
-
-    get_group_latency)
-        local group_tag="$2"
-        local timeout="${3:-5000}"
-
-        if [ -z "$group_tag" ]; then
-            echo '{"error":"group_tag required"}' | jq .
-            return 1
-        fi
-
-        curl -G -s "$CLASH_URL/group/$group_tag/delay" \
-            --header "$auth_header" \
-            --data-urlencode "url=$TEST_URL" \
-            --data-urlencode "timeout=$timeout" | jq .
-        ;;
-
-    set_group_proxy)
-        local group_tag="$2"
-        local proxy_tag="$3"
-
-        if [ -z "$group_tag" ] || [ -z "$proxy_tag" ]; then
-            echo '{"error":"group_tag and proxy_tag required"}' | jq .
-            return 1
-        fi
-
-        local response
-        response=$(
-            curl -X PUT -s -w "\n%{http_code}" "$CLASH_URL/proxies/$group_tag" \
-                --header "$auth_header" \
-                --data-raw "{\"name\":\"$proxy_tag\"}"
-        )
-
-        local http_code
-        local body
-        http_code=$(echo "$response" | tail -n 1)
-        body=$(echo "$response" | sed '$d')
-
-        case "$http_code" in
-        204)
-            echo "{\"success\":true,\"group\":\"$group_tag\",\"proxy\":\"$proxy_tag\"}" | jq .
-            ;;
-        404)
-            echo "{\"success\":false,\"error\":\"group_not_found\",\"message\":\"$group_tag does not exist\"}" | jq .
-            return 1
-            ;;
-        400)
-            if echo "$body" | grep -q "not found"; then
-                echo "{\"success\":false,\"error\":\"proxy_not_found\",\"message\":\"$proxy_tag not found in group $group_tag\"}" | jq .
-            else
-                echo '{"success":false,"error":"bad_request","message":"Invalid request"}' | jq .
-            fi
-            return 1
-            ;;
-        *)
-            if [ -n "$body" ]; then
-                local body_json
-                body_json=$(echo "$body" | jq -c .)
-                echo "{\"success\":false,\"http_code\":$http_code,\"body\":$body_json}" | jq .
-            else
-                echo "{\"success\":false,\"http_code\":$http_code}" | jq .
-            fi
-            return 1
-            ;;
-        esac
-        ;;
-
-    *)
-        echo '{"error":"unknown action","available":["get_proxies","get_proxy_latency","get_group_latency","set_group_proxy"]}' | jq .
-        return 1
-        ;;
-    esac
-}
 
 print_global() {
     local message="$1"
@@ -2392,18 +2463,18 @@ global_check() {
     system_info_json=$(get_system_info)
 
     if [ -n "$system_info_json" ]; then
-        local perekop_version perekop_latest_version luci_app_version sing_box_version openwrt_version device_model
+        local perekop_version perekop_latest_version luci_app_version xray_version openwrt_version device_model
 
         perekop_version=$(echo "$system_info_json" | jq -r '.perekop_version // "unknown"')
         perekop_latest_version=$(echo "$system_info_json" | jq -r '.perekop_latest_version // "unknown"')
         luci_app_version=$(echo "$system_info_json" | jq -r '.luci_app_version // "unknown"')
-        sing_box_version=$(echo "$system_info_json" | jq -r '.sing_box_version // "unknown"')
+        xray_version=$(echo "$system_info_json" | jq -r '.xray_version // "unknown"')
         openwrt_version=$(echo "$system_info_json" | jq -r '.openwrt_version // "unknown"')
         device_model=$(echo "$system_info_json" | jq -r '.device_model // "unknown"')
 
         print_global "🕳️ Perekop:        $perekop_version (latest: $perekop_latest_version)"
         print_global "🕳️ LuCI App:      $luci_app_version"
-        print_global "📦 Sing-box:      $sing_box_version"
+        print_global "📦 Xray:          $xray_version"
         print_global "🛜 OpenWrt:       $openwrt_version"
         print_global "🛜 Device:        $device_model"
     else
@@ -2468,58 +2539,58 @@ global_check() {
     fi
 
     print_global "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    print_global "📦 Sing-box status"
+    print_global "📦 Xray status"
 
-    local singbox_check_json
-    singbox_check_json=$(check_sing_box)
+    local xray_check_json
+    xray_check_json=$(check_xray)
 
-    if [ -n "$singbox_check_json" ]; then
-        local sing_box_installed sing_box_version_ok sing_box_service_exist sing_box_autostart_disabled sing_box_process_running sing_box_ports_listening
+    if [ -n "$xray_check_json" ]; then
+        local xray_installed xray_version_ok xray_service_exist xray_autostart_disabled xray_process_running xray_ports_listening
 
-        sing_box_installed=$(echo "$singbox_check_json" | jq -r '.sing_box_installed // 0')
-        sing_box_version_ok=$(echo "$singbox_check_json" | jq -r '.sing_box_version_ok // 0')
-        sing_box_service_exist=$(echo "$singbox_check_json" | jq -r '.sing_box_service_exist // 0')
-        sing_box_autostart_disabled=$(echo "$singbox_check_json" | jq -r '.sing_box_autostart_disabled // 0')
-        sing_box_process_running=$(echo "$singbox_check_json" | jq -r '.sing_box_process_running // 0')
-        sing_box_ports_listening=$(echo "$singbox_check_json" | jq -r '.sing_box_ports_listening // 0')
+        xray_installed=$(echo "$xray_check_json" | jq -r '.xray_installed // 0')
+        xray_version_ok=$(echo "$xray_check_json" | jq -r '.xray_version_ok // 0')
+        xray_service_exist=$(echo "$xray_check_json" | jq -r '.xray_service_exist // 0')
+        xray_autostart_disabled=$(echo "$xray_check_json" | jq -r '.xray_autostart_disabled // 0')
+        xray_process_running=$(echo "$xray_check_json" | jq -r '.xray_process_running // 0')
+        xray_ports_listening=$(echo "$xray_check_json" | jq -r '.xray_ports_listening // 0')
 
-        if [ "$sing_box_installed" -eq 1 ]; then
-            print_global "✅ Sing-box installed"
+        if [ "$xray_installed" -eq 1 ]; then
+            print_global "✅ Xray installed"
         else
-            print_global "❌ Sing-box installed"
+            print_global "❌ Xray installed"
         fi
 
-        if [ "$sing_box_version_ok" -eq 1 ]; then
-            print_global "✅ Sing-box version is compatible (newer than 1.12.4)"
+        if [ "$xray_version_ok" -eq 1 ]; then
+            print_global "✅ Xray version is compatible (newer than $XRAY_REQUIRED_VERSION)"
         else
-            print_global "❌ Sing-box version is not compatible (older than 1.12.4)"
+            print_global "❌ Xray version is not compatible (older than $XRAY_REQUIRED_VERSION)"
         fi
 
-        if [ "$sing_box_service_exist" -eq 1 ]; then
-            print_global "✅ Sing-box service exist"
+        if [ "$xray_service_exist" -eq 1 ]; then
+            print_global "✅ Xray service exist"
         else
-            print_global "❌ Sing-box service exist"
+            print_global "❌ Xray service exist"
         fi
 
-        if [ "$sing_box_autostart_disabled" -eq 1 ]; then
-            print_global "✅ Sing-box autostart disabled"
+        if [ "$xray_autostart_disabled" -eq 1 ]; then
+            print_global "✅ Xray autostart disabled"
         else
-            print_global "❌ Sing-box autostart disabled"
+            print_global "❌ Xray autostart disabled"
         fi
 
-        if [ "$sing_box_process_running" -eq 1 ]; then
-            print_global "✅ Sing-box process running"
+        if [ "$xray_process_running" -eq 1 ]; then
+            print_global "✅ Xray process running"
         else
-            print_global "❌ Sing-box process running"
+            print_global "❌ Xray process running"
         fi
 
-        if [ "$sing_box_ports_listening" -eq 1 ]; then
-            print_global "✅ Sing-box listening ports"
+        if [ "$xray_ports_listening" -eq 1 ]; then
+            print_global "✅ Xray listening ports"
         else
-            print_global "❌ Sing-box listening ports"
+            print_global "❌ Xray listening ports"
         fi
     else
-        print_global "❌ Failed to get sing-box info"
+        print_global "❌ Failed to get xray info"
     fi
 
     print_global "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -2680,9 +2751,9 @@ global_check() {
         fakeip_status=$(echo "$fakeip_check_json" | jq -r '.fakeip // false')
 
         if [ "$fakeip_status" = "true" ]; then
-            print_global "✅ Router DNS is routed through sing-box"
+            print_global "✅ Router DNS is routed through xray"
         else
-            print_global "⚠️ Router DNS is NOT routed through sing-box"
+            print_global "⚠️ Router DNS is NOT routed through xray"
         fi
     else
         print_global "❌ Failed to get FakeIP info"
@@ -2692,9 +2763,9 @@ global_check() {
     fakeip_address=$(dig +short @127.0.0.42 $FAKEIP_TEST_DOMAIN)
 
     if echo "$fakeip_address" | grep -q "^198\.18\."; then
-        print_global "✅ Sing-box works with FakeIP: $fakeip_address"
+        print_global "✅ Xray works with FakeIP: $fakeip_address"
     else
-        print_global "❌ Sing-box does NOT work with FakeIP: $fakeip_address"
+        print_global "❌ Xray does NOT work with FakeIP: $fakeip_address"
     fi
 }
 
@@ -2707,25 +2778,23 @@ Available commands:
     stop                    Stop perekop service
     reload                  Reload perekop configuration
     restart                 Restart perekop service
-    main                    Run main perekop process
     list_update             Update domain lists
     check_proxy             Check proxy connectivity
     check_nft               Check NFT rules
     check_nft_rules         Check NFT rules status
-    check_sing_box          Check sing-box installation and status
+    check_xray              Check Xray installation and status
     check_logs              Show perekop logs from system journal
-    check_sing_box_logs     Show sing-box logs
     check_fakeip            Test FakeIP on router
-    clash_api               Clash API interface for managing proxies and groups
+    xray_api                Xray API interface (get_traffic, get_proxies, set_group_proxy)
     show_config             Display current perekop configuration
     show_version            Show perekop version
-    show_sing_box_config    Show sing-box configuration
-    show_sing_box_version   Show sing-box version
+    show_xray_config        Show Xray configuration
+    show_xray_version       Show Xray version
     show_system_info        Show system information
     get_status              Get perekop service status
-    get_sing_box_status     Get sing-box service status
+    get_xray_status         Get Xray service status
     get_system_info         Get system information in JSON format
-    get_sing_box_features   Get the features of the installed sing-box in JSON format
+    get_xray_features       Get the features of the installed Xray in JSON format
     check_dns_available     Check DNS server availability
     global_check            Run global system check
 EOF
@@ -2744,9 +2813,6 @@ reload)
 restart)
     restart
     ;;
-main)
-    main
-    ;;
 list_update)
     list_update
     ;;
@@ -2759,20 +2825,17 @@ check_nft)
 check_nft_rules)
     check_nft_rules
     ;;
-check_sing_box)
-    check_sing_box
+check_xray)
+    check_xray
     ;;
 check_logs)
     check_logs
     ;;
-check_sing_box_logs)
-    check_sing_box_logs
-    ;;
 check_fakeip)
     check_fakeip
     ;;
-clash_api)
-    clash_api "$2" "$3" "$4"
+xray_api)
+    xray_api "$2" "$3" "$4"
     ;;
 show_config)
     show_config
@@ -2780,11 +2843,11 @@ show_config)
 show_version)
     show_version
     ;;
-show_sing_box_config)
-    show_sing_box_config
+show_xray_config)
+    show_xray_config
     ;;
-show_sing_box_version)
-    show_sing_box_version
+show_xray_version)
+    show_xray_version
     ;;
 show_system_info)
     show_system_info
@@ -2792,14 +2855,14 @@ show_system_info)
 get_status)
     get_status
     ;;
-get_sing_box_status)
-    get_sing_box_status
+get_xray_status)
+    get_xray_status
     ;;
 get_system_info)
     get_system_info
     ;;
-get_sing_box_features)
-    get_sing_box_features
+get_xray_features)
+    get_xray_features
     ;;
 check_dns_available)
     check_dns_available

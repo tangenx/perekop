@@ -125,21 +125,30 @@ url_decode() {
     printf '%b' "$(echo "$encoded" | sed 's/+/ /g; s/%/\\x/g')"
 }
 
-# Prints the features the installed sing-box reports in the "Features:" line of
-# "sing-box version", comma-separated; nothing for a sing-box without that line
-sing_box_get_features() {
-    sing-box version 2> /dev/null | sed -n 's/^Features:[[:space:]]*//p'
+# Returns the version of the installed Xray ("25.1.30"); empty when absent
+xray_get_version() {
+    xray version 2> /dev/null | head -n 1 | awk '{print $2}'
 }
 
-# Checks if the installed sing-box reports the given feature
-sing_box_has_feature() {
+# Checks if the installed Xray supports the given feature by comparing its
+# version with the minimum version that introduced the feature
+xray_has_feature() {
     local feature="$1"
+    local version required
 
-    case ",$(sing_box_get_features)," in
-    *",$feature,"*) return 0 ;;
+    version="$(xray_get_version)"
+    [ -z "$version" ] && return 1
+
+    case "$feature" in
+    proxy.hysteria2) required="$XRAY_HYSTERIA_MIN_VERSION" ;;
+    tls.ech) required="$XRAY_ECH_MIN_VERSION" ;;
+    *)
+        log "Unknown Xray feature: $feature" "error"
+        return 1
+        ;;
     esac
 
-    return 1
+    is_min_package_version "$version" "$required"
 }
 
 # Returns the scheme (protocol) part of a URL

@@ -6,7 +6,7 @@ PKG_VERSION := $(if $(PEREKOP_VERSION),$(PEREKOP_VERSION),0.$(shell date +%d%m%Y
 
 PKG_RELEASE:=1
 
-PKG_MAINTAINER:=ITDog <perekop@itdog.info>
+PKG_MAINTAINER:=tangenx <perekop@tangenx.dev>
 PKG_LICENSE:=GPL-2.0-or-later
 
 include $(INCLUDE_DIR)/package.mk
@@ -14,15 +14,14 @@ include $(INCLUDE_DIR)/package.mk
 define Package/perekop
 	SECTION:=net
 	CATEGORY:=Network
-	DEPENDS:=+sing-box +curl +jq +kmod-nft-tproxy +coreutils-base64 +bind-dig
-	CONFLICTS:=https-dns-proxy nextdns luci-app-passwall luci-app-passwall2
-	TITLE:=Domain routing app
-	URL:=https://perekop.net
+	DEPENDS:=+xray-core +curl +jq +kmod-nft-tproxy +coreutils-base64 +bind-dig
+	CONFLICTS:=https-dns-proxy nextdns luci-app-passwall luci-app-passwall2 podkop luci-app-podkop
+	TITLE:=Domain routing app based on Xray
+	URL:=https://github.com/tangenx/perekop
 	PKGARCH:=all
-endef
 
 define Package/perekop/description
-	Domain routing. Use of VLESS, Shadowsocks technologies
+	Domain routing via Xray. Use of VLESS, Shadowsocks, Trojan, SOCKS and Hysteria2 technologies. Based on Podkop (https://github.com/itdoginfo/podkop)
 endef
 
 define Build/Configure
