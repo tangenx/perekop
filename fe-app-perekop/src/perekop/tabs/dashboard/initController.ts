@@ -5,6 +5,7 @@ import { logger, store, StoreType } from '../../services';
 import { renderSections, renderWidget } from './partials';
 import { fetchServicesInfo } from '../../fetchers';
 let trafficTimer: number | undefined;
+let dashboardMounted = false;
 let previousTraffic:
   | { uplink: number; downlink: number; at: number }
   | undefined;
@@ -67,9 +68,14 @@ async function fetchTraffic() {
 }
 
 async function pollTraffic() {
-  const success = await fetchTraffic();
-  if (!success) return;
-  trafficTimer = setTimeout(pollTraffic, 1500);
+  if (!dashboardMounted) return;
+  try {
+    const success = await fetchTraffic();
+    if (!success || !dashboardMounted) return;
+    trafficTimer = setTimeout(pollTraffic, 1500);
+  } catch (error) {
+    logger.error('[DASHBOARD]', 'pollTraffic: failed to fetch', error);
+  }
 }
 
 async function handleChooseOutbound(selector: string, tag: string) {
@@ -213,13 +219,16 @@ function onStoreUpdate(
 
 async function onPageMount() {
   onPageUnmount();
+  dashboardMounted = true;
   store.subscribe(onStoreUpdate);
   await Promise.all([fetchDashboardSections(), fetchServicesInfo()]);
+  if (!dashboardMounted) return;
   previousTraffic = undefined;
   void pollTraffic();
 }
 
 function onPageUnmount() {
+  dashboardMounted = false;
   store.unsubscribe(onStoreUpdate);
   clearTimeout(trafficTimer);
   trafficTimer = undefined;

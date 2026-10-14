@@ -1620,6 +1620,7 @@ async function fetchServicesInfo() {
 
 // src/perekop/tabs/dashboard/initController.ts
 var trafficTimer;
+var dashboardMounted = false;
 var previousTraffic;
 async function fetchDashboardSections() {
   const previous = store.get().sectionsWidget;
@@ -1672,9 +1673,14 @@ async function fetchTraffic() {
   return true;
 }
 async function pollTraffic() {
-  const success = await fetchTraffic();
-  if (!success) return;
-  trafficTimer = setTimeout(pollTraffic, 1500);
+  if (!dashboardMounted) return;
+  try {
+    const success = await fetchTraffic();
+    if (!success || !dashboardMounted) return;
+    trafficTimer = setTimeout(pollTraffic, 1500);
+  } catch (error) {
+    logger.error("[DASHBOARD]", "pollTraffic: failed to fetch", error);
+  }
 }
 async function handleChooseOutbound(selector, tag) {
   const result = await PerekopShellMethods.setGroupProxy(selector, tag);
@@ -1790,12 +1796,15 @@ function onStoreUpdate(_next, _prev, diff) {
 }
 async function onPageMount() {
   onPageUnmount();
+  dashboardMounted = true;
   store.subscribe(onStoreUpdate);
   await Promise.all([fetchDashboardSections(), fetchServicesInfo()]);
+  if (!dashboardMounted) return;
   previousTraffic = void 0;
   void pollTraffic();
 }
 function onPageUnmount() {
+  dashboardMounted = false;
   store.unsubscribe(onStoreUpdate);
   clearTimeout(trafficTimer);
   trafficTimer = void 0;

@@ -19,6 +19,7 @@ define Package/perekop
 	TITLE:=Domain routing app based on Xray
 	URL:=https://github.com/tangenx/perekop
 	PKGARCH:=all
+endef
 
 define Package/perekop/description
 	Domain routing via Xray. Use of VLESS, Shadowsocks, Trojan, SOCKS and Hysteria2 technologies. Based on Podkop (https://github.com/itdoginfo/podkop)
