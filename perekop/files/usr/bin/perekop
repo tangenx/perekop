@@ -1181,7 +1181,11 @@ collect_community_list_matchers() {
         return 0
     fi
 
-    domain_items="$domain_items,ext:geosite.dat:$(community_geosite_tag "$service")"
+    if [ -z "$domain_items" ]; then
+        domain_items="ext:geosite.dat:$(community_geosite_tag "$service")"
+    else
+        domain_items="$domain_items,ext:geosite.dat:$(community_geosite_tag "$service")"
+    fi
 
     # Community subnet lists were imported into nft by list_update; the same
     # files feed the ip matchers of the section
