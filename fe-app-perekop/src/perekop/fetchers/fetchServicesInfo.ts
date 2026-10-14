@@ -2,27 +2,27 @@ import { PerekopShellMethods } from '../methods';
 import { store } from '../services';
 
 export async function fetchServicesInfo() {
-  const [perekop, singbox] = await Promise.all([
+  const [perekop, xray] = await Promise.all([
     PerekopShellMethods.getStatus(),
-    PerekopShellMethods.getSingBoxStatus(),
+    PerekopShellMethods.getXrayStatus(),
   ]);
 
-  if (!perekop.success || !singbox.success) {
+  if (!perekop.success || !xray.success) {
     store.set({
       servicesInfoWidget: {
         loading: false,
         failed: true,
-        data: { singbox: 0, perekop: 0 },
+        data: { xray: 0, perekop: 0 },
       },
     });
   }
 
-  if (perekop.success && singbox.success) {
+  if (perekop.success && xray.success) {
     store.set({
       servicesInfoWidget: {
         loading: false,
         failed: false,
-        data: { singbox: singbox.data.running, perekop: perekop.data.enabled },
+        data: { xray: xray.data.running, perekop: perekop.data.enabled },
       },
     });
   }

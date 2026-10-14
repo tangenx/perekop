@@ -11,8 +11,8 @@ body:
         Спасибо за создание отчета об ошибке!
         
         Перед отправкой, пожалуйста:
-        - Проверьте [существующие issues](https://github.com/itdoginfo/perekop/issues)
-        - Просмотрите [документацию](https://perekop.net)
+        - Проверьте [существующие issues](https://github.com/tangenx/perekop/issues)
+        - Просмотрите [README](https://github.com/tangenx/perekop)
 
   - type: textarea
     id: description
@@ -55,7 +55,7 @@ body:
         - **OpenWrt версия**: 
         - **Perekop версия**: 
         - **Роутер модель**: 
-        - **Sing-box версия**: 
+-        - **Xray версия**:
       render: markdown
     validations:
       required: true
@@ -69,6 +69,6 @@ body:
       placeholder: |
         Например:
         - Содержимое /etc/config/perekop
-        - Конфигурация sing-box (если релевантно)
+-        - Конфигурация Xray (если релевантно)
         - Дополнительные конфиги, которые потребуются wireless/network/dhcp и т.д.
       render: shell

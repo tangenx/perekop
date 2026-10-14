@@ -21,8 +21,8 @@ const EntryPoint = {
   async render() {
     main.injectGlobalStyles();
 
-    // Options of features the installed sing-box does not have are not created
-    const singBoxFeatures = await main.CustomPerekopMethods.getSingBoxFeatures();
+    // Options requiring features are created conditionally
+    const xrayFeatures = await main.CustomPerekopMethods.getXrayFeatures();
 
     const perekopMap = new form.Map(
       "perekop",
@@ -43,7 +43,7 @@ const EntryPoint = {
     sectionsSection.template = "cbi/simpleform";
 
     // Render section content
-    section.createSectionContent(sectionsSection, singBoxFeatures);
+  section.createSectionContent(sectionsSection, xrayFeatures);
 
     // Settings tab
     const settingsSection = perekopMap.section(
@@ -59,7 +59,7 @@ const EntryPoint = {
     };
 
     // Render settings content
-    settings.createSettingsContent(settingsSection, singBoxFeatures);
+  settings.createSettingsContent(settingsSection, xrayFeatures);
 
     // Diagnostic tab
     const diagnosticSection = perekopMap.section(

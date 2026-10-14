@@ -1,7 +1,10 @@
-FROM itdoginfo/openwrt-sdk-ipk:24.10.6
+FROM openwrt/sdk:x86_64-v24.10.6
 
 ARG PEREKOP_VERSION
 
+RUN ./scripts/feeds update -a && \
+    ./scripts/feeds install luci-base && \
+    mkdir -p /builder/package/feeds/utilities /builder/package/feeds/luci
 COPY ./perekop /builder/package/feeds/utilities/perekop
 COPY ./luci-app-perekop /builder/package/feeds/luci/luci-app-perekop
 

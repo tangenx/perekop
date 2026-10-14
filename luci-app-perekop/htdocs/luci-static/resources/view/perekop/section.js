@@ -5,7 +5,7 @@
 "require tools.widgets as widgets";
 "require view.perekop.main as main";
 
-function createSectionContent(section, singBoxFeatures = []) {
+function createSectionContent(section, xrayFeatures = []) {
   let o = section.option(
     form.ListValue,
     "connection_type",
@@ -128,29 +128,6 @@ function createSectionContent(section, singBoxFeatures = []) {
     return validation.message;
   };
 
-  if (singBoxFeatures.includes("urltest.fallbacks")) {
-    o = section.option(
-      form.DynamicList,
-      "urltest_fallback_links",
-      _("Fallback URLs"),
-      _("Used in this order only while none of the URLTest proxy links responds")
-    );
-    o.depends("proxy_config_type", "urltest");
-    o.validate = function (section_id, value) {
-      // Optional
-      if (!value || value.length === 0) {
-        return true;
-      }
-
-      const validation = main.validateProxyUrl(value);
-
-      if (validation.valid) {
-        return true;
-      }
-
-      return validation.message;
-    };
-  }
 
   o = section.option(
     form.ListValue,
@@ -165,28 +142,6 @@ function createSectionContent(section, singBoxFeatures = []) {
   o.default = "3m";
   o.depends("proxy_config_type", "urltest");
 
-  o = section.option(
-    form.Value,
-    "urltest_tolerance",
-    _("URLTest Tolerance"),
-    _("The maximum difference in response times (ms) allowed when comparing servers")
-  );
-  o.default = "50";
-  o.rmempty = false;
-  o.depends("proxy_config_type", "urltest");
-  o.validate = function (section_id, value) {
-    if (!value || value.length === 0) {
-      return true;
-    }
-
-    const parsed = parseFloat(value);
-
-    if (/^[0-9]+$/.test(value) && !isNaN(parsed) && isFinite(parsed) && parsed >= 50 && parsed <= 1000) {
-      return true;
-    }
-
-    return _('Must be a number in the range of 50 - 1000');
-  };
 
   o = section.option(
     form.Value,
@@ -216,56 +171,7 @@ function createSectionContent(section, singBoxFeatures = []) {
     return validation.message;
   };
 
-  if (singBoxFeatures.includes("urltest.download_url")) {
-    o = section.option(
-      form.ListValue,
-      "urltest_download_check",
-      _("Download Check"),
-      _("Before switching to a server, 64 KiB is downloaded through it, so a server that freezes connections after about 16 KB is skipped")
-    );
-    o.value("default", _("Default"));
-    o.value("off", _("Disabled"));
-    o.value("custom", _("Custom URL"));
-    o.default = "default";
-    o.depends("proxy_config_type", "urltest");
 
-    o = section.option(
-      form.Value,
-      "urltest_download_url",
-      _("Download Check URL"),
-      _("The URL must serve at least 64 KiB or announce a shorter length")
-    );
-    Object.entries(main.URLTEST_DOWNLOAD_URL_OPTIONS).forEach(([key, label]) => {
-      o.value(key, _(label));
-    });
-    o.default = "https://speed.cloudflare.com/__down?bytes=65536";
-    o.rmempty = false;
-    o.depends({ proxy_config_type: "urltest", urltest_download_check: "custom" });
-
-    o.validate = function (section_id, value) {
-      if (!value || value.length === 0) {
-        return true;
-      }
-
-      const validation = main.validateUrl(value);
-
-      if (validation.valid) {
-        return true;
-      }
-
-      return validation.message;
-    };
-  }
-
-  o = section.option(
-    form.Flag,
-    "enable_udp_over_tcp",
-    _("UDP over TCP"),
-    _("Applicable for SOCKS and Shadowsocks proxy"),
-  );
-  o.default = "0";
-  o.depends("connection_type", "proxy");
-  o.rmempty = false;
 
   o = section.option(
     widgets.DeviceSelect,
@@ -447,6 +353,52 @@ function createSectionContent(section, singBoxFeatures = []) {
   };
 
   o = section.option(
+    form.DynamicList,
+    "community_lists",
+    _("Community Lists"),
+    _("Select a predefined list for routing") +
+      ' <a href="https://github.com/itdoginfo/allow-domains" target="_blank">github.com/itdoginfo/allow-domains</a>',
+  );
+  o.depends("connection_type", "proxy");
+  o.depends("connection_type", "block");
+  o.depends("connection_type", "exclusion");
+  o.placeholder = "Service list";
+  Object.entries(main.DOMAIN_LIST_OPTIONS).forEach(([key, label]) => o.value(key, _(label)));
+  o.rmempty = true;
+  o.onchange = function (ev, section_id, value) {
+    if (isProcessing) return;
+    isProcessing = true;
+    try { lastValues = Array.isArray(value) ? value : [value]; }
+    finally { isProcessing = false; }
+  };
+  o = section.option(
+    form.ListValue,
+    "user_subnet_list_type",
+    _("User Subnet List Type"),
+    _("Select the list type for adding custom subnets"),
+  );
+  o.value("disabled", _("Disabled"));
+  o.value("dynamic", _("Dynamic List"));
+  o.value("text", _("Text List"));
+  o.default = "disabled";
+  o.rmempty = false;
+
+  o = section.option(
+    form.DynamicList,
+    "user_subnets",
+    _("User Subnets"),
+    _("Enter subnets in CIDR notation or single IP addresses"),
+  );
+  o.placeholder = "IP or subnet";
+  o.depends("user_subnet_list_type", "dynamic");
+  o.rmempty = false;
+  o.validate = function (section_id, value) {
+    if (!value || value.length === 0) return true;
+    const validation = main.validateSubnet(value);
+    return validation.valid ? true : validation.message;
+  };
+
+  o = section.option(
     form.ListValue,
     "user_domain_list_type",
     _("User Domain List Type"),
@@ -457,6 +409,9 @@ function createSectionContent(section, singBoxFeatures = []) {
   o.value("text", _("Text List"));
   o.default = "disabled";
   o.rmempty = false;
+  o.depends("connection_type", "proxy");
+  o.depends("connection_type", "block");
+  o.depends("connection_type", "exclusion");
 
   o = section.option(
     form.DynamicList,
@@ -467,6 +422,9 @@ function createSectionContent(section, singBoxFeatures = []) {
     ),
   );
   o.placeholder = "Domains list";
+  o.depends("connection_type", "proxy");
+  o.depends("connection_type", "block");
+  o.depends("connection_type", "exclusion");
   o.depends("user_domain_list_type", "dynamic");
   o.rmempty = false;
   o.validate = function (section_id, value) {
@@ -497,6 +455,9 @@ function createSectionContent(section, singBoxFeatures = []) {
   o.depends("user_domain_list_type", "text");
   o.rows = 8;
   o.rmempty = false;
+  o.depends("connection_type", "proxy");
+  o.depends("connection_type", "block");
+  o.depends("connection_type", "exclusion");
   o.validate = function (section_id, value) {
     // Optional
     if (!value || value.length === 0) {
@@ -524,44 +485,6 @@ function createSectionContent(section, singBoxFeatures = []) {
     }
 
     return true;
-  };
-
-  o = section.option(
-    form.ListValue,
-    "user_subnet_list_type",
-    _("User Subnet List Type"),
-    _("Select the list type for adding custom subnets"),
-  );
-  o.value("disabled", _("Disabled"));
-  o.value("dynamic", _("Dynamic List"));
-  o.value("text", _("Text List"));
-  o.default = "disabled";
-  o.rmempty = false;
-
-  o = section.option(
-    form.DynamicList,
-    "user_subnets",
-    _("User Subnets"),
-    _(
-      "Enter subnets in CIDR notation (e.g. 103.21.244.0/22) or single IP addresses",
-    ),
-  );
-  o.placeholder = "IP or subnet";
-  o.depends("user_subnet_list_type", "dynamic");
-  o.rmempty = false;
-  o.validate = function (section_id, value) {
-    // Optional
-    if (!value || value.length === 0) {
-      return true;
-    }
-
-    const validation = main.validateSubnet(value);
-
-    if (validation.valid) {
-      return true;
-    }
-
-    return validation.message;
   };
 
   o = section.option(
@@ -604,6 +527,9 @@ function createSectionContent(section, singBoxFeatures = []) {
 
     return true;
   };
+  o.depends("connection_type", "proxy");
+  o.depends("connection_type", "block");
+  o.depends("connection_type", "exclusion");
 
   o = section.option(
     form.DynamicList,
@@ -741,24 +667,11 @@ function createSectionContent(section, singBoxFeatures = []) {
     form.Value,
     "mixed_proxy_port",
     _("Mixed Proxy Port"),
-    _(
-      "Specify the port number on which the mixed proxy will run for this section. " +
-        "Make sure the selected port is not used by another service",
-    ),
+    _("SOCKS on this port, HTTP on the next port"),
   );
   o.rmempty = false;
   o.depends("mixed_proxy_enabled", "1");
 
-  o = section.option(
-    form.Flag,
-    "resolve_real_ip_for_routing",
-    _("Resolve real IP for routing"),
-    _("Enable DNS resolve to get real IP when routing"),
-  );
-  o.default = "0";
-  o.rmempty = false;
-  o.depends("connection_type", "proxy");
-  o.depends("connection_type", "vpn");
 }
 
 const EntryPoint = {

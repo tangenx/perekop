@@ -2,7 +2,7 @@ import { getCheckTitle } from '../helpers/getCheckTitle';
 
 export enum DIAGNOSTICS_CHECKS {
   DNS = 'DNS',
-  SINGBOX = 'SINGBOX',
+  XRAY = 'XRAY',
   NFT = 'NFT',
   FAKEIP = 'FAKEIP',
   OUTBOUNDS = 'OUTBOUNDS',
@@ -17,10 +17,10 @@ export const DIAGNOSTICS_CHECKS_MAP: Record<
     title: getCheckTitle('DNS'),
     code: DIAGNOSTICS_CHECKS.DNS,
   },
-  [DIAGNOSTICS_CHECKS.SINGBOX]: {
+  [DIAGNOSTICS_CHECKS.XRAY]: {
     order: 2,
-    title: getCheckTitle('Sing-box'),
-    code: DIAGNOSTICS_CHECKS.SINGBOX,
+    title: getCheckTitle('Xray'),
+    code: DIAGNOSTICS_CHECKS.XRAY,
   },
   [DIAGNOSTICS_CHECKS.NFT]: {
     order: 3,

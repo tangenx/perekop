@@ -5,7 +5,7 @@
 "require tools.widgets as widgets";
 "require view.perekop.main as main";
 
-function createSettingsContent(section, singBoxFeatures = []) {
+function createSettingsContent(section, xrayFeatures = []) {
   let o = section.option(
     form.ListValue,
     "dns_type",
@@ -13,7 +13,6 @@ function createSettingsContent(section, singBoxFeatures = []) {
     _("Select DNS protocol to use"),
   );
   o.value("doh", _("DNS over HTTPS (DoH)"));
-  o.value("dot", _("DNS over TLS (DoT)"));
   o.value("udp", _("UDP (Unprotected DNS)"));
   o.default = "udp";
   o.rmempty = false;
@@ -62,26 +61,6 @@ function createSettingsContent(section, singBoxFeatures = []) {
     return validation.message;
   };
 
-  o = section.option(
-    form.Value,
-    "dns_rewrite_ttl",
-    _("DNS Rewrite TTL"),
-    _("Time in seconds for DNS record caching (default: 60)"),
-  );
-  o.default = "60";
-  o.rmempty = false;
-  o.validate = function (section_id, value) {
-    if (!value) {
-      return _("TTL value cannot be empty");
-    }
-
-    const ttl = parseInt(value);
-    if (isNaN(ttl) || ttl < 0) {
-      return _("TTL must be a positive number");
-    }
-
-    return true;
-  };
 
   o = section.option(
     widgets.DeviceSelect,
@@ -231,44 +210,7 @@ function createSettingsContent(section, singBoxFeatures = []) {
     return true;
   };
 
-  o = section.option(
-    form.Flag,
-    "enable_yacd",
-    _("Enable YACD"),
-    `<a href="${main.getClashUIUrl()}" target="_blank">${main.getClashUIUrl()}</a>`,
-  );
-  o.default = "0";
-  o.rmempty = false;
 
-  o = section.option(
-    form.Flag,
-    "enable_yacd_wan_access",
-    _("Enable YACD WAN Access"),
-    _("Allows access to YACD from the WAN. Make sure to open the appropriate port in your firewall."),
-  );
-  o.depends("enable_yacd", "1");
-  o.default = "0";
-  o.rmempty = false;
-
-  o = section.option(
-    form.Value,
-    "yacd_secret_key",
-    _("YACD Secret Key"),
-    _("Secret key for authenticating remote access to YACD when WAN access is enabled."),
-  );
-  o.depends("enable_yacd_wan_access", "1");
-  o.rmempty = false;
-
-  if (singBoxFeatures.includes("tls.utls-fallback")) {
-    o = section.option(
-      form.Flag,
-      "enable_utls_fallback",
-      _("Enable uTLS-fallback"),
-      _("When a server does not answer the TLS ClientHello sent with the uTLS fingerprint of a link, the connection is tried with other fingerprints"),
-    );
-    o.default = "0";
-    o.rmempty = false;
-  }
 
   o = section.option(
     form.Flag,
@@ -344,67 +286,25 @@ function createSettingsContent(section, singBoxFeatures = []) {
     form.ListValue,
     "config_path",
     _("Config File Path"),
-    _(
-      "Select path for sing-box config file. Change this ONLY if you know what you are doing",
-    ),
+    _("Select path for Xray config file. Change this ONLY if you know what you are doing"),
   );
-  o.value("/etc/sing-box/config.json", "Flash (/etc/sing-box/config.json)");
-  o.value("/tmp/sing-box/config.json", "RAM (/tmp/sing-box/config.json)");
-  o.default = "/etc/sing-box/config.json";
+  o.value("/etc/xray/config.json", "Flash (/etc/xray/config.json)");
+  o.value("/tmp/xray/config.json", "RAM (/tmp/xray/config.json)");
+  o.default = "/etc/xray/config.json";
   o.rmempty = false;
-
-  o = section.option(
-    form.Value,
-    "cache_path",
-    _("Cache File Path"),
-    _(
-      "Select or enter path for sing-box cache file. Change this ONLY if you know what you are doing",
-    ),
-  );
-  o.value("/tmp/sing-box/cache.db", "RAM (/tmp/sing-box/cache.db)");
-  o.value(
-    "/usr/share/sing-box/cache.db",
-    "Flash (/usr/share/sing-box/cache.db)",
-  );
-  o.default = "/tmp/sing-box/cache.db";
-  o.rmempty = false;
-  o.validate = function (section_id, value) {
-    if (!value) {
-      return _("Cache file path cannot be empty");
-    }
-
-    if (!value.startsWith("/")) {
-      return _("Path must be absolute (start with /)");
-    }
-
-    if (!value.endsWith("cache.db")) {
-      return _("Path must end with cache.db");
-    }
-
-    const parts = value.split("/").filter(Boolean);
-    if (parts.length < 2) {
-      return _("Path must contain at least one directory (like /tmp/cache.db)");
-    }
-
-    return true;
-  };
 
   o = section.option(
     form.ListValue,
     "log_level",
     _("Log Level"),
-    _(
-      "Select the log level for sing-box",
-    ),
+    _("Select the log level for Xray"),
   );
-  o.value("trace", "Trace");
   o.value("debug", "Debug");
   o.value("info", "Info");
-  o.value("warn", "Warn");
+  o.value("warning", "Warning");
   o.value("error", "Error");
-  o.value("fatal", "Fatal");
-  o.value("panic", "Panic");
-  o.default = "warn";
+  o.value("none", "None");
+  o.default = "warning";
   o.rmempty = false;
 
   o = section.option(

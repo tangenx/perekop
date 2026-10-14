@@ -4,7 +4,6 @@ import { getConfigSections } from '../getConfigSections';
 import { PerekopShellMethods } from '../../shell';
 
 vi.mock('../getConfigSections', () => ({ getConfigSections: vi.fn() }));
-// the helpers index pulls in the DOM services: only the two helpers used here
 vi.mock('../../../../helpers', async () => ({
   getProxyUrlName: (await import('../../../../helpers/getProxyUrlName'))
     .getProxyUrlName,
@@ -12,80 +11,50 @@ vi.mock('../../../../helpers', async () => ({
     .splitProxyString,
 }));
 vi.mock('../../shell', () => ({
-  PerekopShellMethods: { getClashApiProxies: vi.fn() },
+  PerekopShellMethods: { getXrayProxies: vi.fn() },
 }));
 
-const proxy = (name, extra = {}) => ({ name, history: [], ...extra });
-
-function mockUrlTest(section, all) {
+function mockUrlTest(section, outbounds, selected = '') {
   getConfigSections.mockResolvedValue([section]);
-  PerekopShellMethods.getClashApiProxies.mockResolvedValue({
+  PerekopShellMethods.getXrayProxies.mockResolvedValue({
     success: true,
-    data: {
-      proxies: {
-        'main-out': proxy('main-out', { now: 'main-urltest-out' }),
-        'main-urltest-out': proxy('main-urltest-out', { all }),
-        ...Object.fromEntries(all.map((tag) => [tag, proxy(tag)])),
-      },
-    },
+    data: { main: { outbounds, selected } },
   });
 }
 
-async function tileNames() {
-  const result = await getDashboardSections();
-  return result.data[0].outbounds.map((outbound) => outbound.displayName);
-}
-
-describe('getDashboardSections, urltest section', () => {
+describe('getDashboardSections, Xray groups', () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it('names the proxy links, then the fallback links, in the group order', async () => {
+  it('names proxy and fallback links in order', async () => {
     mockUrlTest(
       {
         '.name': 'main',
         connection_type: 'proxy',
         proxy_config_type: 'urltest',
-        urltest_proxy_links: [
-          'socks5://10.0.0.1:1080#A',
-          'socks5://10.0.0.2:1080#B',
-        ],
-        urltest_fallback_links: ['socks5://10.0.0.3:1080#Fallback'],
+        urltest_proxy_links: ['socks5://1.1.1.1:80#A', 'socks5://1.1.1.2:80#B'],
+        urltest_fallback_links: ['socks5://1.1.1.3:80#Fallback'],
       },
       ['main-1-out', 'main-2-out', 'main-fallback-1-out'],
     );
-
-    expect(await tileNames()).toEqual(['Fastest', 'A', 'B', 'Fallback']);
+    const result = await getDashboardSections();
+    expect(result.data[0].outbounds.map((item) => item.displayName)).toEqual([
+      'Auto',
+      'A',
+      'B',
+      'Fallback',
+    ]);
   });
-
-  it('names the proxy links when there are no fallback links', async () => {
+  it('marks selected outbound', async () => {
     mockUrlTest(
       {
         '.name': 'main',
         connection_type: 'proxy',
-        proxy_config_type: 'urltest',
-        urltest_proxy_links: [
-          'socks5://10.0.0.1:1080#A',
-          'socks5://10.0.0.2:1080#B',
-        ],
+        proxy_config_type: 'selector',
+        selector_proxy_links: ['socks5://1.1.1.1:80#A'],
       },
-      ['main-1-out', 'main-2-out'],
+      ['main-1-out'],
+      'main-1-out',
     );
-
-    expect(await tileNames()).toEqual(['Fastest', 'A', 'B']);
-  });
-
-  it('falls back to the outbound name for a link without a name', async () => {
-    mockUrlTest(
-      {
-        '.name': 'main',
-        connection_type: 'proxy',
-        proxy_config_type: 'urltest',
-        urltest_proxy_links: ['socks5://10.0.0.1:1080#A'],
-        urltest_fallback_links: ['socks5://10.0.0.3:1080'],
-      },
-      ['main-1-out', 'main-fallback-1-out'],
-    );
-
-    expect(await tileNames()).toEqual(['Fastest', 'A', 'main-fallback-1-out']);
+    const result = await getDashboardSections();
+    expect(result.data[0].outbounds[1].selected).toBe(true);
   });
 });

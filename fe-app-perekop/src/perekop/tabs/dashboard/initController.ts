@@ -1,462 +1,248 @@
-import {
-  getClashWsUrl,
-  onMount,
-  preserveScrollForPage,
-} from '../../../helpers';
+import { onMount, preserveScrollForPage } from '../../../helpers';
 import { prettyBytes } from '../../../helpers/prettyBytes';
 import { CustomPerekopMethods, PerekopShellMethods } from '../../methods';
-import { logger, socket, store, StoreType } from '../../services';
+import { logger, store, StoreType } from '../../services';
 import { renderSections, renderWidget } from './partials';
 import { fetchServicesInfo } from '../../fetchers';
-import { getClashApiSecret } from '../../methods/custom/getClashApiSecret';
-
-// Fetchers
+let trafficTimer: number | undefined;
+let previousTraffic:
+  | { uplink: number; downlink: number; at: number }
+  | undefined;
 
 async function fetchDashboardSections() {
-  const prev = store.get().sectionsWidget;
-
-  store.set({
-    sectionsWidget: {
-      ...prev,
-      failed: false,
-    },
-  });
-
+  const previous = store.get().sectionsWidget;
+  store.set({ sectionsWidget: { ...previous, failed: false } });
   const { data, success } = await CustomPerekopMethods.getDashboardSections();
-
-  if (!success) {
+  if (!success)
     logger.error('[DASHBOARD]', 'fetchDashboardSections: failed to fetch');
-  }
+  store.set({ sectionsWidget: { loading: false, failed: !success, data } });
+}
 
+async function fetchTraffic() {
+  const result = await PerekopShellMethods.getXrayTraffic();
+  if (!result.success) {
+    previousTraffic = undefined;
+    store.set({
+      bandwidthWidget: {
+        loading: false,
+        failed: true,
+        data: { up: 0, down: 0 },
+      },
+      trafficTotalWidget: {
+        loading: false,
+        failed: true,
+        data: { uploadTotal: 0, downloadTotal: 0 },
+      },
+    });
+    return false;
+  }
+  const now = Date.now();
+  const current = {
+    uplink: result.data.uplink,
+    downlink: result.data.downlink,
+    at: now,
+  };
+  let up = 0;
+  let down = 0;
+  if (
+    previousTraffic &&
+    now > previousTraffic.at &&
+    current.uplink >= previousTraffic.uplink &&
+    current.downlink >= previousTraffic.downlink
+  ) {
+    const elapsed = (now - previousTraffic.at) / 1000;
+    up = (current.uplink - previousTraffic.uplink) / elapsed;
+    down = (current.downlink - previousTraffic.downlink) / elapsed;
+  }
+  previousTraffic = current;
   store.set({
-    sectionsWidget: {
-      latencyFetching: false,
+    bandwidthWidget: { loading: false, failed: false, data: { up, down } },
+    trafficTotalWidget: {
       loading: false,
-      failed: !success,
-      data,
+      failed: false,
+      data: { uploadTotal: current.uplink, downloadTotal: current.downlink },
     },
   });
+  return true;
 }
 
-async function connectToClashSockets() {
-  const clashApiSecret = await getClashApiSecret();
-
-  socket.subscribe(
-    `${getClashWsUrl()}/traffic?token=${clashApiSecret}`,
-    (msg) => {
-      const parsedMsg = JSON.parse(msg);
-
-      store.set({
-        bandwidthWidget: {
-          loading: false,
-          failed: false,
-          data: { up: parsedMsg.up, down: parsedMsg.down },
-        },
-      });
-    },
-    (_err) => {
-      logger.error(
-        '[DASHBOARD]',
-        'connectToClashSockets - traffic: failed to connect to',
-        getClashWsUrl(),
-      );
-      store.set({
-        bandwidthWidget: {
-          loading: false,
-          failed: true,
-          data: { up: 0, down: 0 },
-        },
-      });
-    },
-  );
-
-  socket.subscribe(
-    `${getClashWsUrl()}/connections?token=${clashApiSecret}`,
-    (msg) => {
-      const parsedMsg = JSON.parse(msg);
-
-      store.set({
-        trafficTotalWidget: {
-          loading: false,
-          failed: false,
-          data: {
-            downloadTotal: parsedMsg.downloadTotal,
-            uploadTotal: parsedMsg.uploadTotal,
-          },
-        },
-        systemInfoWidget: {
-          loading: false,
-          failed: false,
-          data: {
-            connections: parsedMsg.connections?.length,
-            memory: parsedMsg.memory,
-          },
-        },
-      });
-    },
-    (_err) => {
-      logger.error(
-        '[DASHBOARD]',
-        'connectToClashSockets - connections: failed to connect to',
-        getClashWsUrl(),
-      );
-      store.set({
-        trafficTotalWidget: {
-          loading: false,
-          failed: true,
-          data: { downloadTotal: 0, uploadTotal: 0 },
-        },
-        systemInfoWidget: {
-          loading: false,
-          failed: true,
-          data: {
-            connections: 0,
-            memory: 0,
-          },
-        },
-      });
-    },
-  );
+async function pollTraffic() {
+  const success = await fetchTraffic();
+  if (!success) return;
+  trafficTimer = setTimeout(pollTraffic, 1500);
 }
-
-// Handlers
 
 async function handleChooseOutbound(selector: string, tag: string) {
-  await PerekopShellMethods.setClashApiGroupProxy(selector, tag);
+  const result = await PerekopShellMethods.setGroupProxy(selector, tag);
+  if (!result.success)
+    logger.error(
+      '[DASHBOARD]',
+      'handleChooseOutbound: failed to set proxy',
+      result,
+    );
   await fetchDashboardSections();
 }
 
-async function handleTestGroupLatency(tag: string) {
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: true,
-    },
-  });
-
-  await PerekopShellMethods.getClashApiGroupLatency(tag);
-  await fetchDashboardSections();
-
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: false,
-    },
-  });
-}
-
-async function handleTestProxyLatency(tag: string) {
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: true,
-    },
-  });
-
-  await PerekopShellMethods.getClashApiProxyLatency(tag);
-  await fetchDashboardSections();
-
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: false,
-    },
-  });
-}
-
-// Renderer
-
-async function renderSectionsWidget() {
-  logger.debug('[DASHBOARD]', 'renderSectionsWidget');
+function renderSectionsWidget() {
   const sectionsWidget = store.get().sectionsWidget;
   const container = document.getElementById('dashboard-sections-grid');
-
-  if (sectionsWidget.loading || sectionsWidget.failed) {
-    const renderedWidget = renderSections({
-      loading: sectionsWidget.loading,
-      failed: sectionsWidget.failed,
-      section: {
-        code: '',
-        displayName: '',
-        outbounds: [],
-        withTagSelect: false,
-      },
-      onTestLatency: () => {},
-      onChooseOutbound: () => {},
-      latencyFetching: sectionsWidget.latencyFetching,
-    });
-
-    return preserveScrollForPage(() => {
-      container!.replaceChildren(renderedWidget);
-    });
-  }
-
-  const renderedWidgets = sectionsWidget.data.map((section) =>
-    renderSections({
-      loading: sectionsWidget.loading,
-      failed: sectionsWidget.failed,
-      section,
-      latencyFetching: sectionsWidget.latencyFetching,
-      onTestLatency: (tag) => {
-        if (section.withTagSelect) {
-          return handleTestGroupLatency(tag);
-        }
-
-        return handleTestProxyLatency(tag);
-      },
-      onChooseOutbound: (selector, tag) => {
-        handleChooseOutbound(selector, tag);
-      },
-    }),
-  );
-
-  return preserveScrollForPage(() => {
-    container!.replaceChildren(...renderedWidgets);
-  });
+  if (!container) return;
+  const sectionList =
+    sectionsWidget.loading || sectionsWidget.failed
+      ? [
+          renderSections({
+            loading: sectionsWidget.loading,
+            failed: sectionsWidget.failed,
+            section: {
+              code: '',
+              displayName: '',
+              outbounds: [],
+              withTagSelect: false,
+            },
+            onChooseOutbound: () => {},
+          }),
+        ]
+      : sectionsWidget.data.map((section) =>
+          renderSections({
+            loading: false,
+            failed: false,
+            section,
+            onChooseOutbound: handleChooseOutbound,
+          }),
+        );
+  preserveScrollForPage(() => container.replaceChildren(...sectionList));
 }
 
-async function renderBandwidthWidget() {
-  logger.debug('[DASHBOARD]', 'renderBandwidthWidget');
+function renderBandwidthWidget() {
   const traffic = store.get().bandwidthWidget;
-
   const container = document.getElementById('dashboard-widget-traffic');
-
-  if (traffic.loading || traffic.failed) {
-    const renderedWidget = renderWidget({
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
       loading: traffic.loading,
       failed: traffic.failed,
-      title: '',
-      items: [],
-    });
-
-    return container!.replaceChildren(renderedWidget);
-  }
-
-  const renderedWidget = renderWidget({
-    loading: traffic.loading,
-    failed: traffic.failed,
-    title: _('Traffic'),
-    items: [
-      { key: _('Uplink'), value: `${prettyBytes(traffic.data.up)}/s` },
-      { key: _('Downlink'), value: `${prettyBytes(traffic.data.down)}/s` },
-    ],
-  });
-
-  container!.replaceChildren(renderedWidget);
+      title: _('Traffic'),
+      items:
+        traffic.loading || traffic.failed
+          ? []
+          : [
+              { key: _('Uplink'), value: `${prettyBytes(traffic.data.up)}/s` },
+              {
+                key: _('Downlink'),
+                value: `${prettyBytes(traffic.data.down)}/s`,
+              },
+            ],
+    }),
+  );
 }
 
-async function renderTrafficTotalWidget() {
-  logger.debug('[DASHBOARD]', 'renderTrafficTotalWidget');
-  const trafficTotalWidget = store.get().trafficTotalWidget;
-
+function renderTrafficTotalWidget() {
+  const traffic = store.get().trafficTotalWidget;
   const container = document.getElementById('dashboard-widget-traffic-total');
-
-  if (trafficTotalWidget.loading || trafficTotalWidget.failed) {
-    const renderedWidget = renderWidget({
-      loading: trafficTotalWidget.loading,
-      failed: trafficTotalWidget.failed,
-      title: '',
-      items: [],
-    });
-
-    return container!.replaceChildren(renderedWidget);
-  }
-
-  const renderedWidget = renderWidget({
-    loading: trafficTotalWidget.loading,
-    failed: trafficTotalWidget.failed,
-    title: _('Traffic Total'),
-    items: [
-      {
-        key: _('Uplink'),
-        value: String(prettyBytes(trafficTotalWidget.data.uploadTotal)),
-      },
-      {
-        key: _('Downlink'),
-        value: String(prettyBytes(trafficTotalWidget.data.downloadTotal)),
-      },
-    ],
-  });
-
-  container!.replaceChildren(renderedWidget);
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
+      loading: traffic.loading,
+      failed: traffic.failed,
+      title: _('Traffic Total'),
+      items:
+        traffic.loading || traffic.failed
+          ? []
+          : [
+              {
+                key: _('Uplink'),
+                value: prettyBytes(traffic.data.uploadTotal),
+              },
+              {
+                key: _('Downlink'),
+                value: prettyBytes(traffic.data.downloadTotal),
+              },
+            ],
+    }),
+  );
 }
 
-async function renderSystemInfoWidget() {
-  logger.debug('[DASHBOARD]', 'renderSystemInfoWidget');
-  const systemInfoWidget = store.get().systemInfoWidget;
-
-  const container = document.getElementById('dashboard-widget-system-info');
-
-  if (systemInfoWidget.loading || systemInfoWidget.failed) {
-    const renderedWidget = renderWidget({
-      loading: systemInfoWidget.loading,
-      failed: systemInfoWidget.failed,
-      title: '',
-      items: [],
-    });
-
-    return container!.replaceChildren(renderedWidget);
-  }
-
-  const renderedWidget = renderWidget({
-    loading: systemInfoWidget.loading,
-    failed: systemInfoWidget.failed,
-    title: _('System info'),
-    items: [
-      {
-        key: _('Active Connections'),
-        value: String(systemInfoWidget.data.connections),
-      },
-      {
-        key: _('Memory Usage'),
-        value: String(prettyBytes(systemInfoWidget.data.memory)),
-      },
-    ],
-  });
-
-  container!.replaceChildren(renderedWidget);
-}
-
-async function renderServicesInfoWidget() {
-  logger.debug('[DASHBOARD]', 'renderServicesInfoWidget');
-  const servicesInfoWidget = store.get().servicesInfoWidget;
-
+function renderServicesInfoWidget() {
+  const services = store.get().servicesInfoWidget;
   const container = document.getElementById('dashboard-widget-service-info');
-
-  if (servicesInfoWidget.loading || servicesInfoWidget.failed) {
-    const renderedWidget = renderWidget({
-      loading: servicesInfoWidget.loading,
-      failed: servicesInfoWidget.failed,
-      title: '',
-      items: [],
-    });
-
-    return container!.replaceChildren(renderedWidget);
-  }
-
-  const renderedWidget = renderWidget({
-    loading: servicesInfoWidget.loading,
-    failed: servicesInfoWidget.failed,
-    title: _('Services info'),
-    items: [
-      {
-        key: _('Perekop'),
-        value: servicesInfoWidget.data.perekop
-          ? _('✔ Enabled')
-          : _('✘ Disabled'),
-        attributes: {
-          class: servicesInfoWidget.data.perekop
-            ? 'pdk_dashboard-page__widgets-section__item__row--success'
-            : 'pdk_dashboard-page__widgets-section__item__row--error',
-        },
-      },
-      {
-        key: _('Sing-box'),
-        value: servicesInfoWidget.data.singbox
-          ? _('✔ Running')
-          : _('✘ Stopped'),
-        attributes: {
-          class: servicesInfoWidget.data.singbox
-            ? 'pdk_dashboard-page__widgets-section__item__row--success'
-            : 'pdk_dashboard-page__widgets-section__item__row--error',
-        },
-      },
-    ],
-  });
-
-  container!.replaceChildren(renderedWidget);
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
+      loading: services.loading,
+      failed: services.failed,
+      title: _('Services info'),
+      items:
+        services.loading || services.failed
+          ? []
+          : [
+              {
+                key: _('Perekop'),
+                value: services.data.perekop
+                  ? _('✔ Enabled')
+                  : _('✘ Disabled'),
+                attributes: {
+                  class: services.data.perekop
+                    ? 'pdk_dashboard-page__widgets-section__item__row--success'
+                    : 'pdk_dashboard-page__widgets-section__item__row--error',
+                },
+              },
+              {
+                key: _('Xray'),
+                value: services.data.xray ? _('✔ Running') : _('✘ Stopped'),
+                attributes: {
+                  class: services.data.xray
+                    ? 'pdk_dashboard-page__widgets-section__item__row--success'
+                    : 'pdk_dashboard-page__widgets-section__item__row--error',
+                },
+              },
+            ],
+    }),
+  );
 }
 
-async function onStoreUpdate(
-  next: StoreType,
-  prev: StoreType,
+function onStoreUpdate(
+  _next: StoreType,
+  _prev: StoreType,
   diff: Partial<StoreType>,
 ) {
-  if (diff.sectionsWidget) {
-    renderSectionsWidget();
-  }
-
-  if (diff.bandwidthWidget) {
-    renderBandwidthWidget();
-  }
-
-  if (diff.trafficTotalWidget) {
-    renderTrafficTotalWidget();
-  }
-
-  if (diff.systemInfoWidget) {
-    renderSystemInfoWidget();
-  }
-
-  if (diff.servicesInfoWidget) {
-    renderServicesInfoWidget();
-  }
+  if (diff.sectionsWidget) renderSectionsWidget();
+  if (diff.bandwidthWidget) renderBandwidthWidget();
+  if (diff.trafficTotalWidget) renderTrafficTotalWidget();
+  if (diff.servicesInfoWidget) renderServicesInfoWidget();
 }
 
 async function onPageMount() {
-  // Cleanup before mount
   onPageUnmount();
-
-  // Add new listener
   store.subscribe(onStoreUpdate);
-
-  // Initial sections fetch
-  await fetchDashboardSections();
-  await fetchServicesInfo();
-  await connectToClashSockets();
+  await Promise.all([fetchDashboardSections(), fetchServicesInfo()]);
+  previousTraffic = undefined;
+  void pollTraffic();
 }
 
 function onPageUnmount() {
-  // Remove old listener
   store.unsubscribe(onStoreUpdate);
-  // Clear store
+  clearTimeout(trafficTimer);
+  trafficTimer = undefined;
+  previousTraffic = undefined;
   store.reset([
     'bandwidthWidget',
     'trafficTotalWidget',
-    'systemInfoWidget',
     'servicesInfoWidget',
     'sectionsWidget',
   ]);
-  socket.resetAll();
 }
 
 function registerLifecycleListeners() {
   store.subscribe((next, prev, diff) => {
-    if (
-      diff.tabService &&
-      next.tabService.current !== prev.tabService.current
-    ) {
-      logger.debug(
-        '[DASHBOARD]',
-        'active tab diff event, active tab:',
-        diff.tabService.current,
-      );
-      const isDashboardVisible = next.tabService.current === 'dashboard';
-
-      if (isDashboardVisible) {
-        logger.debug(
-          '[DASHBOARD]',
-          'registerLifecycleListeners',
-          'onPageMount',
-        );
-        return onPageMount();
-      }
-
-      if (!isDashboardVisible) {
-        logger.debug(
-          '[DASHBOARD]',
-          'registerLifecycleListeners',
-          'onPageUnmount',
-        );
-        return onPageUnmount();
-      }
-    }
+    if (!diff.tabService || next.tabService.current === prev.tabService.current)
+      return;
+    if (next.tabService.current === 'dashboard') void onPageMount();
+    else onPageUnmount();
   });
 }
 
 export async function initController(): Promise<void> {
   onMount('dashboard-status').then(() => {
-    logger.debug('[DASHBOARD]', 'initController', 'onMount');
     onPageMount();
     registerLifecycleListeners();
   });

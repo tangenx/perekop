@@ -1,9 +1,11 @@
 #!/bin/sh
 # shellcheck shell=dash
 
-REPO="https://api.github.com/repos/itdoginfo/perekop/releases/latest"
+REPO="https://api.github.com/repos/tangenx/perekop/releases/latest"
 DOWNLOAD_DIR="/tmp/perekop"
 COUNT=3
+XRAY_LATEST=0
+[ "$1" = "--xray-latest" ] && XRAY_LATEST=1
 
 # Cached flag to switch between ipk or apk package managers
 PKG_IS_APK=0
@@ -66,7 +68,7 @@ update_config() {
     printf "\033[48;5;196m\033[1m║ ! Обнаружена старая версия perekop.                                   ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ Если продолжите обновление, вам потребуется настроить Perekop заново. ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ Старая конфигурация будет сохранена в /etc/config/perekop-070         ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ Подробности: https://github.com/itdoginfo/perekop                     ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ Подробности: https://github.com/tangenx/perekop                     ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ Точно хотите продолжить?                                             ║\033[0m\n"
     printf "\033[48;5;196m\033[1m╚══════════════════════════════════════════════════════════════════════╝\033[0m\n"
 
@@ -76,7 +78,7 @@ update_config() {
     printf "\033[48;5;196m\033[1m║ ! Detected old perekop version.                                       ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ If you continue the update, you will need to RECONFIGURE perekop.     ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ Your old configuration will be saved to /etc/config/perekop-070       ║\033[0m\n"
-    printf "\033[48;5;196m\033[1m║ Details: https://github.com/itdoginfo/perekop                         ║\033[0m\n"
+    printf "\033[48;5;196m\033[1m║ Details: https://github.com/tangenx/perekop                         ║\033[0m\n"
     printf "\033[48;5;196m\033[1m║ Are you sure you want to continue?                                   ║\033[0m\n"
     printf "\033[48;5;196m\033[1m╚══════════════════════════════════════════════════════════════════════╝\033[0m\n"
 
@@ -88,7 +90,7 @@ update_config() {
 
             yes|y|Y)
                 mv /etc/config/perekop /etc/config/perekop-070
-                wget -O /etc/config/perekop https://raw.githubusercontent.com/itdoginfo/perekop/refs/heads/main/perekop/files/etc/config/perekop
+                wget -O /etc/config/perekop https://raw.githubusercontent.com/tangenx/perekop/refs/heads/main/perekop/files/etc/config/perekop
                 msg "Perekop config has been reset to default. Your old config saved in /etc/config/perekop-070"
                 break
                 ;;
@@ -102,7 +104,7 @@ update_config() {
 
 main() {
     check_system
-    sing_box
+    xray_core
 
     /usr/sbin/ntpd -q -p 194.190.168.1 -p 216.239.35.0 -p 216.239.35.4 -p 162.159.200.1 -p 162.159.200.123
 
@@ -113,9 +115,8 @@ main() {
     else
         msg "Installing perekop..."
     fi
-
     if command -v curl >/dev/null 2>&1; then
-        check_response=$(curl -s "https://api.github.com/repos/itdoginfo/perekop/releases/latest")
+        check_response=$(curl -s "https://api.github.com/repos/tangenx/perekop/releases/latest")
 
         if echo "$check_response" | grep -q 'API rate limit '; then
             msg "You've reached the GitHub rate limit. Repeat in five minutes."
@@ -174,6 +175,7 @@ main() {
         fi
     done
 
+    xray_latest
     ru=""
     for f in "$DOWNLOAD_DIR"/luci-i18n-perekop-ru*; do
         if [ -f "$f" ]; then
@@ -183,29 +185,22 @@ main() {
     done
     if [ -n "$ru" ]; then
         if pkg_is_installed luci-i18n-perekop-ru; then
-                msg "Upgrading Russian translation..."
-                pkg_remove luci-i18n-perekop*
-                pkg_install "$DOWNLOAD_DIR/$ru"
+            msg "Upgrading Russian translation..."
+            pkg_remove luci-i18n-perekop*
+            pkg_install "$DOWNLOAD_DIR/$ru"
         else
             msg "Русский язык интерфейса ставим? y/n (Install the Russian interface language?)"
             while true; do
-                read -r -p '' RUS
+                read -r RUS
                 case $RUS in
-                y)
-                    pkg_remove luci-i18n-perekop*
-                    pkg_install "$DOWNLOAD_DIR/$ru"
-                    break
-                    ;;
-                n)
-                    break
-                    ;;
-                *)
-                    echo "Введите y или n"
-                    ;;
+                    y) pkg_remove luci-i18n-perekop*; pkg_install "$DOWNLOAD_DIR/$ru"; break ;;
+                    n) break ;;
+                    *) echo "Введите y или n" ;;
                 esac
             done
         fi
     fi
+
 
     find "$DOWNLOAD_DIR" -type f -name '*perekop*' -exec rm {} \;
 }
@@ -220,7 +215,7 @@ check_system() {
     if [ "$openwrt_version" = "23" ]; then
         msg "OpenWrt 23.05 не поддерживается начиная с perekop 0.5.0"
         msg "Для OpenWrt 23.05 используйте perekop версии 0.4.11 или устанавливайте зависимости и perekop вручную"
-        msg "Подробности: https://perekop.net/docs/install/#%d1%83%d1%81%d1%82%d0%b0%d0%bd%d0%be%d0%b2%d0%ba%d0%b0-%d0%bd%d0%b0-2305"
+        msg "Подробности: https://github.com/tangenx/perekop"
         exit 1
     fi
 
@@ -291,20 +286,51 @@ check_system() {
     fi
 }
 
-sing_box() {
-    if ! pkg_is_installed "^sing-box"; then
-        return
+xray_core() {
+    # xray-core is managed by the OpenWrt package manager and is retained.
+    if ! pkg_is_installed "^xray-core"; then
+        msg "xray-core package is not installed; perekop will install it as a dependency."
+    fi
+}
+
+xray_latest() {
+    if [ "$XRAY_LATEST" -eq 0 ]; then
+        msg "Install the latest Xray binary from XTLS releases (needed for Hysteria2, Xray >= 26.1.13)? y/n"
+        read -r XRAY_ANSWER
+        [ "$XRAY_ANSWER" = "y" ] || [ "$XRAY_ANSWER" = "Y" ] || return 0
     fi
 
-    sing_box_version=$(sing-box version | head -n 1 | awk '{print $3}')
-    required_version="1.12.4"
-
-    if [ "$(printf '%s\n%s\n' "$sing_box_version" "$required_version" | sort -V | head -n 1)" != "$required_version" ]; then
-        msg "sing-box version $sing_box_version is older than the required version $required_version."
-        msg "Removing old version..."
-        service perekop stop
-        pkg_remove sing-box
+    local arch asset url tmpdir
+    if [ "$PKG_IS_APK" -eq 1 ]; then
+        arch=$(apk print-arch 2>/dev/null | head -n 1)
+    else
+        arch=$(opkg print-architecture 2>/dev/null | awk '$1 == "arch" {print $2}' | tail -n 1)
     fi
+    case "$arch" in
+        x86_64) asset="Xray-linux-64.zip" ;;
+        aarch64) asset="Xray-linux-arm64-v8a.zip" ;;
+        arm_cortex-a7*|arm_cortex-a15*) asset="Xray-linux-arm32-v7a.zip" ;;
+        mips*) msg "No official XTLS Xray binary matches $arch (24kc). Keeping stock xray-core."; return 0 ;;
+        *) msg "Unsupported architecture $arch for XTLS Xray binary. Keeping stock xray-core."; return 0 ;;
+    esac
+    if ! command -v unzip >/dev/null 2>&1; then
+        msg "unzip is required to install the Xray binary. Installing it..."
+        pkg_list_update && pkg_install unzip || { msg "Cannot install unzip; keeping stock xray-core."; return 0; }
+    fi
+    url=$(wget -qO- https://api.github.com/repos/XTLS/Xray-core/releases/latest | grep -o "https:[^\" ]*/$asset" | head -n 1)
+    [ -n "$url" ] || { msg "Could not find $asset in XTLS releases; keeping stock xray-core."; return 0; }
+    msg "Downloading latest Xray ($asset)..."
+    wget -qO /tmp/xray-latest.zip "$url" || { msg "Xray download failed; keeping stock xray-core."; return 0; }
+    tmpdir=$(mktemp -d /tmp/xray-latest.XXXXXX)
+    unzip -qo /tmp/xray-latest.zip -d "$tmpdir" || { rm -rf "$tmpdir"; msg "Xray archive extraction failed; keeping stock xray-core."; return 0; }
+    [ -f "$tmpdir/xray" ] || { rm -rf "$tmpdir"; msg "Xray archive has no binary; keeping stock xray-core."; return 0; }
+    [ -e /usr/bin/xray.opkg.bak ] || cp /usr/bin/xray /usr/bin/xray.opkg.bak
+    cp "$tmpdir/xray" /usr/bin/xray && chmod +x /usr/bin/xray
+    rm -rf "$tmpdir" /tmp/xray-latest.zip
+    if [ -x /etc/init.d/xray ] && /etc/init.d/xray status >/dev/null 2>&1; then
+        /etc/init.d/xray restart
+    fi
+    msg "Latest Xray installed. opkg/apk upgrade xray-core will overwrite this binary — run install.sh --xray-latest again."
 }
 
 main

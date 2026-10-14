@@ -610,27 +610,26 @@ var Perekop;
     AvailableMethods2["CHECK_FAKEIP"] = "check_fakeip";
     AvailableMethods2["CHECK_NFT_RULES"] = "check_nft_rules";
     AvailableMethods2["GET_STATUS"] = "get_status";
-    AvailableMethods2["CHECK_SING_BOX"] = "check_sing_box";
-    AvailableMethods2["GET_SING_BOX_STATUS"] = "get_sing_box_status";
-    AvailableMethods2["CLASH_API"] = "clash_api";
+    AvailableMethods2["CHECK_XRAY"] = "check_xray";
+    AvailableMethods2["GET_XRAY_STATUS"] = "get_xray_status";
+    AvailableMethods2["XRAY_API"] = "xray_api";
     AvailableMethods2["RESTART"] = "restart";
     AvailableMethods2["START"] = "start";
     AvailableMethods2["STOP"] = "stop";
     AvailableMethods2["ENABLE"] = "enable";
     AvailableMethods2["DISABLE"] = "disable";
     AvailableMethods2["GLOBAL_CHECK"] = "global_check";
-    AvailableMethods2["SHOW_SING_BOX_CONFIG"] = "show_sing_box_config";
+    AvailableMethods2["SHOW_XRAY_CONFIG"] = "show_xray_config";
     AvailableMethods2["CHECK_LOGS"] = "check_logs";
     AvailableMethods2["GET_SYSTEM_INFO"] = "get_system_info";
-    AvailableMethods2["GET_SING_BOX_FEATURES"] = "get_sing_box_features";
+    AvailableMethods2["GET_XRAY_FEATURES"] = "get_xray_features";
   })(AvailableMethods = Perekop2.AvailableMethods || (Perekop2.AvailableMethods = {}));
-  let AvailableClashAPIMethods;
-  ((AvailableClashAPIMethods2) => {
-    AvailableClashAPIMethods2["GET_PROXIES"] = "get_proxies";
-    AvailableClashAPIMethods2["GET_PROXY_LATENCY"] = "get_proxy_latency";
-    AvailableClashAPIMethods2["GET_GROUP_LATENCY"] = "get_group_latency";
-    AvailableClashAPIMethods2["SET_GROUP_PROXY"] = "set_group_proxy";
-  })(AvailableClashAPIMethods = Perekop2.AvailableClashAPIMethods || (Perekop2.AvailableClashAPIMethods = {}));
+  let AvailableXrayAPIMethods;
+  ((AvailableXrayAPIMethods2) => {
+    AvailableXrayAPIMethods2["GET_TRAFFIC"] = "get_traffic";
+    AvailableXrayAPIMethods2["GET_PROXIES"] = "get_proxies";
+    AvailableXrayAPIMethods2["SET_GROUP_PROXY"] = "set_group_proxy";
+  })(AvailableXrayAPIMethods = Perekop2.AvailableXrayAPIMethods || (Perekop2.AvailableXrayAPIMethods = {}));
 })(Perekop || (Perekop = {}));
 
 // src/perekop/methods/shell/index.ts
@@ -645,25 +644,20 @@ var PerekopShellMethods = {
     Perekop.AvailableMethods.CHECK_NFT_RULES
   ),
   getStatus: async () => callBaseMethod(Perekop.AvailableMethods.GET_STATUS),
-  checkSingBox: async () => callBaseMethod(
-    Perekop.AvailableMethods.CHECK_SING_BOX
+  checkXray: async () => callBaseMethod(
+    Perekop.AvailableMethods.CHECK_XRAY
   ),
-  getSingBoxStatus: async () => callBaseMethod(
-    Perekop.AvailableMethods.GET_SING_BOX_STATUS
+  getXrayStatus: async () => callBaseMethod(
+    Perekop.AvailableMethods.GET_XRAY_STATUS
   ),
-  getClashApiProxies: async () => callBaseMethod(Perekop.AvailableMethods.CLASH_API, [
-    Perekop.AvailableClashAPIMethods.GET_PROXIES
+  getXrayTraffic: async () => callBaseMethod(Perekop.AvailableMethods.XRAY_API, [
+    Perekop.AvailableXrayAPIMethods.GET_TRAFFIC
   ]),
-  getClashApiProxyLatency: async (tag) => callBaseMethod(
-    Perekop.AvailableMethods.CLASH_API,
-    [Perekop.AvailableClashAPIMethods.GET_PROXY_LATENCY, tag, "5000"]
-  ),
-  getClashApiGroupLatency: async (tag) => callBaseMethod(
-    Perekop.AvailableMethods.CLASH_API,
-    [Perekop.AvailableClashAPIMethods.GET_GROUP_LATENCY, tag, "10000"]
-  ),
-  setClashApiGroupProxy: async (group, proxy) => callBaseMethod(Perekop.AvailableMethods.CLASH_API, [
-    Perekop.AvailableClashAPIMethods.SET_GROUP_PROXY,
+  getXrayProxies: async () => callBaseMethod(Perekop.AvailableMethods.XRAY_API, [
+    Perekop.AvailableXrayAPIMethods.GET_PROXIES
+  ]),
+  setGroupProxy: async (group, proxy) => callBaseMethod(Perekop.AvailableMethods.XRAY_API, [
+    Perekop.AvailableXrayAPIMethods.SET_GROUP_PROXY,
     group,
     proxy
   ]),
@@ -693,187 +687,100 @@ var PerekopShellMethods = {
     "/etc/init.d/perekop"
   ),
   globalCheck: async () => callBaseMethod(Perekop.AvailableMethods.GLOBAL_CHECK),
-  showSingBoxConfig: async () => callBaseMethod(Perekop.AvailableMethods.SHOW_SING_BOX_CONFIG),
+  showXrayConfig: async () => callBaseMethod(Perekop.AvailableMethods.SHOW_XRAY_CONFIG),
   checkLogs: async () => callBaseMethod(Perekop.AvailableMethods.CHECK_LOGS),
   getSystemInfo: async () => callBaseMethod(
     Perekop.AvailableMethods.GET_SYSTEM_INFO
   ),
-  getSingBoxFeatures: async () => callBaseMethod(Perekop.AvailableMethods.GET_SING_BOX_FEATURES)
+  getXrayFeatures: async () => callBaseMethod(Perekop.AvailableMethods.GET_XRAY_FEATURES)
 };
 
 // src/perekop/methods/custom/getDashboardSections.ts
 async function getDashboardSections() {
   const configSections = await getConfigSections();
-  const clashProxies = await PerekopShellMethods.getClashApiProxies();
-  if (!clashProxies.success) {
-    return {
-      success: false,
-      data: []
-    };
-  }
-  const proxies = Object.entries(clashProxies.data.proxies).map(
-    ([key, value]) => ({
-      code: key,
-      value
-    })
-  );
+  const proxiesResponse = await PerekopShellMethods.getXrayProxies();
+  if (!proxiesResponse.success) return { success: false, data: [] };
+  const proxies = proxiesResponse.data;
   const data = configSections.filter(
     (section) => section.connection_type !== "block" && section.connection_type !== "exclusion" && section[".type"] !== "settings"
   ).map((section) => {
+    const name = section[".name"];
+    const proxyGroup = proxies[name];
+    const groupOutbound = (tag, displayName, selected) => ({
+      code: tag,
+      displayName,
+      type: "",
+      selected
+    });
     if (section.connection_type === "proxy") {
-      if (section.proxy_config_type === "url") {
-        const outbound = proxies.find(
-          (proxy) => proxy.code === `${section[".name"]}-out`
-        );
-        const activeConfigs = splitProxyString(section.proxy_string);
-        const proxyDisplayName = getProxyUrlName(activeConfigs?.[0]) || outbound?.value?.name || "";
-        return {
-          withTagSelect: false,
-          code: outbound?.code || section[".name"],
-          displayName: section[".name"],
-          outbounds: [
-            {
-              code: outbound?.code || section[".name"],
-              displayName: proxyDisplayName,
-              latency: outbound?.value?.history?.[0]?.delay || 0,
-              type: outbound?.value?.type || "",
-              selected: true
-            }
-          ]
-        };
-      }
-      if (section.proxy_config_type === "outbound") {
-        const outbound = proxies.find(
-          (proxy) => proxy.code === `${section[".name"]}-out`
-        );
-        const parsedOutbound = JSON.parse(section.outbound_json);
-        const parsedTag = parsedOutbound?.tag ? decodeURIComponent(parsedOutbound?.tag) : void 0;
-        const proxyDisplayName = parsedTag || outbound?.value?.name || "";
-        return {
-          withTagSelect: false,
-          code: outbound?.code || section[".name"],
-          displayName: section[".name"],
-          outbounds: [
-            {
-              code: outbound?.code || section[".name"],
-              displayName: proxyDisplayName,
-              latency: outbound?.value?.history?.[0]?.delay || 0,
-              type: outbound?.value?.type || "",
-              selected: true
-            }
-          ]
-        };
-      }
-      if (section.proxy_config_type === "selector") {
-        const selector = proxies.find(
-          (proxy) => proxy.code === `${section[".name"]}-out`
-        );
-        const links = section.selector_proxy_links ?? [];
-        const outbounds = links.map((link, index) => ({
-          link,
-          outbound: proxies.find(
-            (item) => item.code === `${section[".name"]}-${index + 1}-out`
-          )
-        })).map((item) => ({
-          code: item?.outbound?.code || "",
-          displayName: getProxyUrlName(item.link) || item?.outbound?.value?.name || "",
-          latency: item?.outbound?.value?.history?.[0]?.delay || 0,
-          type: item?.outbound?.value?.type || "",
-          selected: selector?.value?.now === item?.outbound?.code
-        }));
-        return {
-          withTagSelect: true,
-          code: selector?.code || section[".name"],
-          displayName: section[".name"],
-          outbounds
-        };
-      }
-      if (section.proxy_config_type === "urltest") {
-        const selector = proxies.find(
-          (proxy) => proxy.code === `${section[".name"]}-out`
-        );
-        const outbound = proxies.find(
-          (proxy) => proxy.code === `${section[".name"]}-urltest-out`
-        );
-        const links = [
+      if (section.proxy_config_type === "selector" || section.proxy_config_type === "urltest") {
+        const links = section.proxy_config_type === "selector" ? section.selector_proxy_links ?? [] : [
           ...section.urltest_proxy_links ?? [],
           ...section.urltest_fallback_links ?? []
         ];
-        const outbounds = (outbound?.value?.all ?? []).map((code) => proxies.find((item) => item.code === code)).map((item, index) => ({
-          code: item?.code || "",
-          displayName: getProxyUrlName(links[index]) || item?.value?.name || "",
-          latency: item?.value?.history?.[0]?.delay || 0,
-          type: item?.value?.type || "",
-          selected: selector?.value?.now === item?.code
-        }));
+        const outbounds = links.map((link, index) => {
+          const code2 = `${name}-${index + 1}-out`;
+          return groupOutbound(
+            code2,
+            getProxyUrlName(link) || code2,
+            proxyGroup?.selected === code2
+          );
+        });
         return {
           withTagSelect: true,
-          code: selector?.code || section[".name"],
-          displayName: section[".name"],
+          code: name,
+          displayName: name,
           outbounds: [
-            {
-              code: outbound?.code || "",
-              displayName: _("Fastest"),
-              latency: outbound?.value?.history?.[0]?.delay || 0,
-              type: outbound?.value?.type || "",
-              selected: selector?.value?.now === outbound?.code
-            },
+            groupOutbound("", _("Auto"), !proxyGroup?.selected),
             ...outbounds
           ]
         };
       }
-    }
-    if (section.connection_type === "vpn") {
-      const outbound = proxies.find(
-        (proxy) => proxy.code === `${section[".name"]}-out`
-      );
+      const code = `${name}-out`;
+      let displayName = code;
+      if (section.proxy_config_type === "url") {
+        displayName = getProxyUrlName(splitProxyString(section.proxy_string)?.[0]) || code;
+      } else if (section.proxy_config_type === "outbound") {
+        const parsedOutbound = JSON.parse(section.outbound_json);
+        displayName = parsedOutbound?.tag ? decodeURIComponent(parsedOutbound.tag) : code;
+      }
       return {
         withTagSelect: false,
-        code: outbound?.code || section[".name"],
-        displayName: section[".name"],
-        outbounds: [
-          {
-            code: outbound?.code || section[".name"],
-            displayName: section.interface || outbound?.value?.name || "",
-            latency: outbound?.value?.history?.[0]?.delay || 0,
-            type: outbound?.value?.type || "",
-            selected: true
-          }
-        ]
+        code: name,
+        displayName: name,
+        outbounds: [groupOutbound(code, displayName, true)]
+      };
+    }
+    if (section.connection_type === "vpn") {
+      const code = `${name}-out`;
+      return {
+        withTagSelect: false,
+        code: name,
+        displayName: name,
+        outbounds: [groupOutbound(code, section.interface || code, true)]
       };
     }
     return {
       withTagSelect: false,
-      code: section[".name"],
-      displayName: section[".name"],
+      code: name,
+      displayName: name,
       outbounds: []
     };
   });
-  return {
-    success: true,
-    data
-  };
+  return { success: true, data };
 }
 
-// src/perekop/methods/custom/getClashApiSecret.ts
-async function getClashApiSecret() {
-  const sections = await getConfigSections();
-  const settings = sections.find((section) => section[".type"] === "settings");
-  return settings?.yacd_secret_key || "";
-}
-
-// src/perekop/methods/custom/getSingBoxFeatures.ts
-async function getSingBoxFeatures() {
-  const { data, success } = await PerekopShellMethods.getSingBoxFeatures();
-  return success && Array.isArray(data) ? data : [];
+// src/perekop/methods/custom/getXrayFeatures.ts
+async function getXrayFeatures() {
+  const response = await PerekopShellMethods.getXrayFeatures();
+  return response.success && Array.isArray(response.data) ? response.data : [];
 }
 
 // src/perekop/methods/custom/index.ts
 var CustomPerekopMethods = {
   getConfigSections,
   getDashboardSections,
-  getClashApiSecret,
-  getSingBoxFeatures
+  getXrayFeatures
 };
 
 // src/constants.ts
@@ -1131,16 +1038,24 @@ function getCheckTitle(name) {
 }
 
 // src/perekop/tabs/diagnostic/checks/contstants.ts
+var DIAGNOSTICS_CHECKS = /* @__PURE__ */ ((DIAGNOSTICS_CHECKS2) => {
+  DIAGNOSTICS_CHECKS2["DNS"] = "DNS";
+  DIAGNOSTICS_CHECKS2["XRAY"] = "XRAY";
+  DIAGNOSTICS_CHECKS2["NFT"] = "NFT";
+  DIAGNOSTICS_CHECKS2["FAKEIP"] = "FAKEIP";
+  DIAGNOSTICS_CHECKS2["OUTBOUNDS"] = "OUTBOUNDS";
+  return DIAGNOSTICS_CHECKS2;
+})(DIAGNOSTICS_CHECKS || {});
 var DIAGNOSTICS_CHECKS_MAP = {
   ["DNS" /* DNS */]: {
     order: 1,
     title: getCheckTitle("DNS"),
     code: "DNS" /* DNS */
   },
-  ["SINGBOX" /* SINGBOX */]: {
+  ["XRAY" /* XRAY */]: {
     order: 2,
-    title: getCheckTitle("Sing-box"),
-    code: "SINGBOX" /* SINGBOX */
+    title: getCheckTitle("Xray"),
+    code: "XRAY" /* XRAY */
   },
   ["NFT" /* NFT */]: {
     order: 3,
@@ -1160,129 +1075,41 @@ var DIAGNOSTICS_CHECKS_MAP = {
 };
 
 // src/perekop/tabs/diagnostic/diagnostic.store.ts
+function checks(description, state) {
+  return Object.values(DIAGNOSTICS_CHECKS).map((code) => ({
+    code,
+    title: DIAGNOSTICS_CHECKS_MAP[code].title,
+    order: DIAGNOSTICS_CHECKS_MAP[code].order,
+    description: _(description),
+    items: [],
+    state
+  }));
+}
 var initialDiagnosticStore = {
   diagnosticsSystemInfo: {
     loading: true,
     perekop_version: "loading",
     perekop_latest_version: "loading",
     luci_app_version: "loading",
-    sing_box_version: "loading",
+    xray_version: "loading",
     openwrt_version: "loading",
     device_model: "loading"
   },
   diagnosticsActions: {
-    restart: {
-      loading: false
-    },
-    start: {
-      loading: false
-    },
-    stop: {
-      loading: false
-    },
-    enable: {
-      loading: false
-    },
-    disable: {
-      loading: false
-    },
-    globalCheck: {
-      loading: false
-    },
-    viewLogs: {
-      loading: false
-    },
-    showSingBoxConfig: {
-      loading: false
-    }
+    restart: { loading: false },
+    start: { loading: false },
+    stop: { loading: false },
+    enable: { loading: false },
+    disable: { loading: false },
+    globalCheck: { loading: false },
+    viewLogs: { loading: false },
+    showXrayConfig: { loading: false }
   },
   diagnosticsRunAction: { loading: false },
-  diagnosticsChecks: [
-    {
-      code: "DNS" /* DNS */,
-      title: DIAGNOSTICS_CHECKS_MAP.DNS.title,
-      order: DIAGNOSTICS_CHECKS_MAP.DNS.order,
-      description: _("Not running"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "SINGBOX" /* SINGBOX */,
-      title: DIAGNOSTICS_CHECKS_MAP.SINGBOX.title,
-      order: DIAGNOSTICS_CHECKS_MAP.SINGBOX.order,
-      description: _("Not running"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "NFT" /* NFT */,
-      title: DIAGNOSTICS_CHECKS_MAP.NFT.title,
-      order: DIAGNOSTICS_CHECKS_MAP.NFT.order,
-      description: _("Not running"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "OUTBOUNDS" /* OUTBOUNDS */,
-      title: DIAGNOSTICS_CHECKS_MAP.OUTBOUNDS.title,
-      order: DIAGNOSTICS_CHECKS_MAP.OUTBOUNDS.order,
-      description: _("Not running"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "FAKEIP" /* FAKEIP */,
-      title: DIAGNOSTICS_CHECKS_MAP.FAKEIP.title,
-      order: DIAGNOSTICS_CHECKS_MAP.FAKEIP.order,
-      description: _("Not running"),
-      items: [],
-      state: "skipped"
-    }
-  ]
+  diagnosticsChecks: checks("Not running", "skipped")
 };
 var loadingDiagnosticsChecksStore = {
-  diagnosticsChecks: [
-    {
-      code: "DNS" /* DNS */,
-      title: DIAGNOSTICS_CHECKS_MAP.DNS.title,
-      order: DIAGNOSTICS_CHECKS_MAP.DNS.order,
-      description: _("Pending"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "SINGBOX" /* SINGBOX */,
-      title: DIAGNOSTICS_CHECKS_MAP.SINGBOX.title,
-      order: DIAGNOSTICS_CHECKS_MAP.SINGBOX.order,
-      description: _("Pending"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "NFT" /* NFT */,
-      title: DIAGNOSTICS_CHECKS_MAP.NFT.title,
-      order: DIAGNOSTICS_CHECKS_MAP.NFT.order,
-      description: _("Pending"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "OUTBOUNDS" /* OUTBOUNDS */,
-      title: DIAGNOSTICS_CHECKS_MAP.OUTBOUNDS.title,
-      order: DIAGNOSTICS_CHECKS_MAP.OUTBOUNDS.order,
-      description: _("Pending"),
-      items: [],
-      state: "skipped"
-    },
-    {
-      code: "FAKEIP" /* FAKEIP */,
-      title: DIAGNOSTICS_CHECKS_MAP.FAKEIP.title,
-      order: DIAGNOSTICS_CHECKS_MAP.FAKEIP.order,
-      description: _("Pending"),
-      items: [],
-      state: "skipped"
-    }
-  ]
+  diagnosticsChecks: checks("Pending", "skipped")
 };
 
 // src/perekop/services/store.service.ts
@@ -1390,20 +1217,14 @@ var initialStore = {
     failed: false,
     data: { downloadTotal: 0, uploadTotal: 0 }
   },
-  systemInfoWidget: {
-    loading: true,
-    failed: false,
-    data: { connections: 0, memory: 0 }
-  },
   servicesInfoWidget: {
     loading: true,
     failed: false,
-    data: { singbox: 0, perekop: 0 }
+    data: { xray: 0, perekop: 0 }
   },
   sectionsWidget: {
     loading: true,
     failed: false,
-    latencyFetching: false,
     data: []
   },
   ...initialDiagnosticStore
@@ -1601,246 +1422,60 @@ function coreService() {
   watcher.start();
 }
 
-// src/perekop/services/socket.service.ts
-var SocketManager = class _SocketManager {
-  constructor() {
-    this.sockets = /* @__PURE__ */ new Map();
-    this.listeners = /* @__PURE__ */ new Map();
-    this.connected = /* @__PURE__ */ new Map();
-    this.errorListeners = /* @__PURE__ */ new Map();
-  }
-  static getInstance() {
-    if (!_SocketManager.instance) {
-      _SocketManager.instance = new _SocketManager();
-    }
-    return _SocketManager.instance;
-  }
-  resetAll() {
-    for (const [url, ws] of this.sockets.entries()) {
-      try {
-        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-          ws.close();
-        }
-      } catch (err) {
-        logger.error(
-          "[SOCKET]",
-          `resetAll: failed to close socket ${url}`,
-          err
-        );
-      }
-    }
-    this.sockets.clear();
-    this.listeners.clear();
-    this.errorListeners.clear();
-    this.connected.clear();
-    logger.info("[SOCKET]", "All connections and state have been reset.");
-  }
-  connect(url) {
-    if (this.sockets.has(url)) return;
-    let ws;
-    try {
-      ws = new WebSocket(url);
-    } catch (err) {
-      logger.error(
-        "[SOCKET]",
-        `failed to construct WebSocket for ${url}:`,
-        err
-      );
-      this.triggerError(url, err instanceof Event ? err : String(err));
-      return;
-    }
-    this.sockets.set(url, ws);
-    this.connected.set(url, false);
-    this.listeners.set(url, /* @__PURE__ */ new Set());
-    this.errorListeners.set(url, /* @__PURE__ */ new Set());
-    ws.addEventListener("open", () => {
-      this.connected.set(url, true);
-      logger.info("[SOCKET]", "Connected to", url);
-    });
-    ws.addEventListener("message", (event) => {
-      const handlers = this.listeners.get(url);
-      if (handlers) {
-        for (const handler of handlers) {
-          try {
-            handler(event.data);
-          } catch (err) {
-            logger.error("[SOCKET]", `Handler error for ${url}:`, err);
-          }
-        }
-      }
-    });
-    ws.addEventListener("close", () => {
-      this.connected.set(url, false);
-      logger.warn("[SOCKET]", `Disconnected: ${url}`);
-      this.triggerError(url, "Connection closed");
-    });
-    ws.addEventListener("error", (err) => {
-      logger.error("[SOCKET]", `Socket error for ${url}:`, err);
-      this.triggerError(url, err);
-    });
-  }
-  subscribe(url, listener, onError) {
-    if (!this.errorListeners.has(url)) {
-      this.errorListeners.set(url, /* @__PURE__ */ new Set());
-    }
-    if (onError) {
-      this.errorListeners.get(url)?.add(onError);
-    }
-    if (!this.sockets.has(url)) {
-      this.connect(url);
-    }
-    if (!this.listeners.has(url)) {
-      this.listeners.set(url, /* @__PURE__ */ new Set());
-    }
-    this.listeners.get(url)?.add(listener);
-  }
-  unsubscribe(url, listener, onError) {
-    this.listeners.get(url)?.delete(listener);
-    if (onError) {
-      this.errorListeners.get(url)?.delete(onError);
-    }
-  }
-  // eslint-disable-next-line
-  send(url, data) {
-    const ws = this.sockets.get(url);
-    if (ws && this.connected.get(url)) {
-      ws.send(typeof data === "string" ? data : JSON.stringify(data));
-    } else {
-      logger.warn("[SOCKET]", `Cannot send: not connected to ${url}`);
-      this.triggerError(url, "Not connected");
-    }
-  }
-  disconnect(url) {
-    const ws = this.sockets.get(url);
-    if (ws) {
-      ws.close();
-      this.sockets.delete(url);
-      this.listeners.delete(url);
-      this.errorListeners.delete(url);
-      this.connected.delete(url);
-    }
-  }
-  disconnectAll() {
-    for (const url of this.sockets.keys()) {
-      this.disconnect(url);
-    }
-  }
-  triggerError(url, err) {
-    const handlers = this.errorListeners.get(url);
-    if (handlers) {
-      for (const cb of handlers) {
-        try {
-          cb(err);
-        } catch (e) {
-          logger.error("[SOCKET]", `Error handler threw for ${url}:`, e);
-        }
-      }
-    }
-  }
-};
-var socket = SocketManager.getInstance();
-
 // src/perekop/tabs/dashboard/partials/renderSections.ts
 function renderFailedState() {
   return E(
     "div",
-    {
-      class: "pdk_dashboard-page__outbound-section centered",
-      style: "height: 127px"
-    },
-    E("span", {}, [E("span", {}, _("Dashboard currently unavailable"))])
+    { class: "pdk_dashboard-page__outbound-section centered" },
+    _("Dashboard currently unavailable")
   );
 }
 function renderLoadingState() {
-  return E("div", {
-    id: "dashboard-sections-grid-skeleton",
-    class: "pdk_dashboard-page__outbound-section skeleton",
-    style: "height: 127px"
-  });
+  return E(
+    "div",
+    {
+      class: "pdk_dashboard-page__outbound-section skeleton",
+      style: "height: 128px"
+    },
+    ""
+  );
 }
 function renderDefaultState({
   section,
-  onChooseOutbound,
-  onTestLatency,
-  latencyFetching
+  onChooseOutbound
 }) {
-  function testLatency() {
-    if (section.withTagSelect) {
-      return onTestLatency(section.code);
-    }
-    if (section.outbounds.length) {
-      return onTestLatency(section.outbounds[0].code);
-    }
-  }
   function renderOutbound(outbound) {
-    function getLatencyClass() {
-      if (!outbound.latency) {
-        return "pdk_dashboard-page__outbound-grid__item__latency--empty";
-      }
-      if (outbound.latency < 800) {
-        return "pdk_dashboard-page__outbound-grid__item__latency--green";
-      }
-      if (outbound.latency < 1500) {
-        return "pdk_dashboard-page__outbound-grid__item__latency--yellow";
-      }
-      return "pdk_dashboard-page__outbound-grid__item__latency--red";
-    }
-    return E(
-      "div",
-      {
-        class: `pdk_dashboard-page__outbound-grid__item ${outbound.selected ? "pdk_dashboard-page__outbound-grid__item--active" : ""} ${section.withTagSelect ? "pdk_dashboard-page__outbound-grid__item--selectable" : ""}`,
-        click: () => section.withTagSelect && onChooseOutbound(section.code, outbound.code)
-      },
-      [
-        E("b", {}, outbound.displayName),
-        E("div", { class: "pdk_dashboard-page__outbound-grid__item__footer" }, [
-          E(
-            "div",
-            { class: "pdk_dashboard-page__outbound-grid__item__type" },
-            outbound.type
-          ),
-          E(
-            "div",
-            { class: getLatencyClass() },
-            outbound.latency ? `${outbound.latency}ms` : "N/A"
-          )
-        ])
-      ]
-    );
+    const control = section.withTagSelect ? E("input", {
+      type: "radio",
+      name: `pdk-${section.code}`,
+      value: outbound.code,
+      checked: outbound.selected,
+      onchange: (event) => onChooseOutbound(
+        section.code,
+        event.target.value
+      )
+    }) : null;
+    return E("div", { class: "pdk_dashboard-page__outbound-grid__item" }, [
+      ...control ? [control] : [],
+      E("span", {}, outbound.displayName)
+    ]);
   }
   return E("div", { class: "pdk_dashboard-page__outbound-section" }, [
-    // Title with test latency
-    E("div", { class: "pdk_dashboard-page__outbound-section__title-section" }, [
-      E(
-        "div",
-        {
-          class: "pdk_dashboard-page__outbound-section__title-section__title"
-        },
-        section.displayName
-      ),
-      latencyFetching ? E("div", { class: "skeleton", style: "width: 99px; height: 28px" }) : E(
-        "button",
-        {
-          class: "btn dashboard-sections-grid-item-test-latency",
-          click: () => testLatency()
-        },
-        _("Test latency")
-      )
-    ]),
+    E(
+      "div",
+      { class: "pdk_dashboard-page__outbound-section__title-section" },
+      E("b", {}, section.displayName)
+    ),
     E(
       "div",
       { class: "pdk_dashboard-page__outbound-grid" },
-      section.outbounds.map((outbound) => renderOutbound(outbound))
+      section.outbounds.map(renderOutbound)
     )
   ]);
 }
 function renderSections(props) {
-  if (props.failed) {
-    return renderFailedState();
-  }
-  if (props.loading) {
-    return renderLoadingState();
-  }
+  if (props.failed) return renderFailedState();
+  if (props.loading) return renderLoadingState();
   return renderDefaultState(props);
 }
 
@@ -1908,58 +1543,41 @@ function renderWidget(props) {
 
 // src/perekop/tabs/dashboard/render.ts
 function render() {
-  return E(
-    "div",
-    {
-      id: "dashboard-status",
-      class: "pdk_dashboard-page"
-    },
-    [
-      // Widgets section
-      E("div", { class: "pdk_dashboard-page__widgets-section" }, [
-        E(
-          "div",
-          { id: "dashboard-widget-traffic" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        ),
-        E(
-          "div",
-          { id: "dashboard-widget-traffic-total" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        ),
-        E(
-          "div",
-          { id: "dashboard-widget-system-info" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        ),
-        E(
-          "div",
-          { id: "dashboard-widget-service-info" },
-          renderWidget({ loading: true, failed: false, title: "", items: [] })
-        )
-      ]),
-      // All outbounds
+  return E("div", { id: "dashboard-status", class: "pdk_dashboard-page" }, [
+    E("div", { class: "pdk_dashboard-page__widgets-section" }, [
       E(
         "div",
-        { id: "dashboard-sections-grid" },
-        renderSections({
-          loading: true,
-          failed: false,
-          section: {
-            code: "",
-            displayName: "",
-            outbounds: [],
-            withTagSelect: false
-          },
-          onTestLatency: () => {
-          },
-          onChooseOutbound: () => {
-          },
-          latencyFetching: false
-        })
+        { id: "dashboard-widget-traffic" },
+        renderWidget({ loading: true, failed: false, title: "", items: [] })
+      ),
+      E(
+        "div",
+        { id: "dashboard-widget-traffic-total" },
+        renderWidget({ loading: true, failed: false, title: "", items: [] })
+      ),
+      E(
+        "div",
+        { id: "dashboard-widget-service-info" },
+        renderWidget({ loading: true, failed: false, title: "", items: [] })
       )
-    ]
-  );
+    ]),
+    E(
+      "div",
+      { id: "dashboard-sections-grid" },
+      renderSections({
+        loading: true,
+        failed: false,
+        section: {
+          code: "",
+          displayName: "",
+          outbounds: [],
+          withTagSelect: false
+        },
+        onChooseOutbound: () => {
+        }
+      })
+    )
+  ]);
 }
 
 // src/helpers/prettyBytes.ts
@@ -1976,170 +1594,104 @@ function prettyBytes(n) {
 
 // src/perekop/fetchers/fetchServicesInfo.ts
 async function fetchServicesInfo() {
-  const [perekop, singbox] = await Promise.all([
+  const [perekop, xray] = await Promise.all([
     PerekopShellMethods.getStatus(),
-    PerekopShellMethods.getSingBoxStatus()
+    PerekopShellMethods.getXrayStatus()
   ]);
-  if (!perekop.success || !singbox.success) {
+  if (!perekop.success || !xray.success) {
     store.set({
       servicesInfoWidget: {
         loading: false,
         failed: true,
-        data: { singbox: 0, perekop: 0 }
+        data: { xray: 0, perekop: 0 }
       }
     });
   }
-  if (perekop.success && singbox.success) {
+  if (perekop.success && xray.success) {
     store.set({
       servicesInfoWidget: {
         loading: false,
         failed: false,
-        data: { singbox: singbox.data.running, perekop: perekop.data.enabled }
+        data: { xray: xray.data.running, perekop: perekop.data.enabled }
       }
     });
   }
 }
 
 // src/perekop/tabs/dashboard/initController.ts
+var trafficTimer;
+var previousTraffic;
 async function fetchDashboardSections() {
-  const prev = store.get().sectionsWidget;
-  store.set({
-    sectionsWidget: {
-      ...prev,
-      failed: false
-    }
-  });
+  const previous = store.get().sectionsWidget;
+  store.set({ sectionsWidget: { ...previous, failed: false } });
   const { data, success } = await CustomPerekopMethods.getDashboardSections();
-  if (!success) {
+  if (!success)
     logger.error("[DASHBOARD]", "fetchDashboardSections: failed to fetch");
+  store.set({ sectionsWidget: { loading: false, failed: !success, data } });
+}
+async function fetchTraffic() {
+  const result = await PerekopShellMethods.getXrayTraffic();
+  if (!result.success) {
+    previousTraffic = void 0;
+    store.set({
+      bandwidthWidget: {
+        loading: false,
+        failed: true,
+        data: { up: 0, down: 0 }
+      },
+      trafficTotalWidget: {
+        loading: false,
+        failed: true,
+        data: { uploadTotal: 0, downloadTotal: 0 }
+      }
+    });
+    return false;
   }
+  const now = Date.now();
+  const current = {
+    uplink: result.data.uplink,
+    downlink: result.data.downlink,
+    at: now
+  };
+  let up = 0;
+  let down = 0;
+  if (previousTraffic && now > previousTraffic.at && current.uplink >= previousTraffic.uplink && current.downlink >= previousTraffic.downlink) {
+    const elapsed = (now - previousTraffic.at) / 1e3;
+    up = (current.uplink - previousTraffic.uplink) / elapsed;
+    down = (current.downlink - previousTraffic.downlink) / elapsed;
+  }
+  previousTraffic = current;
   store.set({
-    sectionsWidget: {
-      latencyFetching: false,
+    bandwidthWidget: { loading: false, failed: false, data: { up, down } },
+    trafficTotalWidget: {
       loading: false,
-      failed: !success,
-      data
+      failed: false,
+      data: { uploadTotal: current.uplink, downloadTotal: current.downlink }
     }
   });
+  return true;
 }
-async function connectToClashSockets() {
-  const clashApiSecret = await getClashApiSecret();
-  socket.subscribe(
-    `${getClashWsUrl()}/traffic?token=${clashApiSecret}`,
-    (msg) => {
-      const parsedMsg = JSON.parse(msg);
-      store.set({
-        bandwidthWidget: {
-          loading: false,
-          failed: false,
-          data: { up: parsedMsg.up, down: parsedMsg.down }
-        }
-      });
-    },
-    (_err) => {
-      logger.error(
-        "[DASHBOARD]",
-        "connectToClashSockets - traffic: failed to connect to",
-        getClashWsUrl()
-      );
-      store.set({
-        bandwidthWidget: {
-          loading: false,
-          failed: true,
-          data: { up: 0, down: 0 }
-        }
-      });
-    }
-  );
-  socket.subscribe(
-    `${getClashWsUrl()}/connections?token=${clashApiSecret}`,
-    (msg) => {
-      const parsedMsg = JSON.parse(msg);
-      store.set({
-        trafficTotalWidget: {
-          loading: false,
-          failed: false,
-          data: {
-            downloadTotal: parsedMsg.downloadTotal,
-            uploadTotal: parsedMsg.uploadTotal
-          }
-        },
-        systemInfoWidget: {
-          loading: false,
-          failed: false,
-          data: {
-            connections: parsedMsg.connections?.length,
-            memory: parsedMsg.memory
-          }
-        }
-      });
-    },
-    (_err) => {
-      logger.error(
-        "[DASHBOARD]",
-        "connectToClashSockets - connections: failed to connect to",
-        getClashWsUrl()
-      );
-      store.set({
-        trafficTotalWidget: {
-          loading: false,
-          failed: true,
-          data: { downloadTotal: 0, uploadTotal: 0 }
-        },
-        systemInfoWidget: {
-          loading: false,
-          failed: true,
-          data: {
-            connections: 0,
-            memory: 0
-          }
-        }
-      });
-    }
-  );
+async function pollTraffic() {
+  const success = await fetchTraffic();
+  if (!success) return;
+  trafficTimer = setTimeout(pollTraffic, 1500);
 }
 async function handleChooseOutbound(selector, tag) {
-  await PerekopShellMethods.setClashApiGroupProxy(selector, tag);
+  const result = await PerekopShellMethods.setGroupProxy(selector, tag);
+  if (!result.success)
+    logger.error(
+      "[DASHBOARD]",
+      "handleChooseOutbound: failed to set proxy",
+      result
+    );
   await fetchDashboardSections();
 }
-async function handleTestGroupLatency(tag) {
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: true
-    }
-  });
-  await PerekopShellMethods.getClashApiGroupLatency(tag);
-  await fetchDashboardSections();
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: false
-    }
-  });
-}
-async function handleTestProxyLatency(tag) {
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: true
-    }
-  });
-  await PerekopShellMethods.getClashApiProxyLatency(tag);
-  await fetchDashboardSections();
-  store.set({
-    sectionsWidget: {
-      ...store.get().sectionsWidget,
-      latencyFetching: false
-    }
-  });
-}
-async function renderSectionsWidget() {
-  logger.debug("[DASHBOARD]", "renderSectionsWidget");
+function renderSectionsWidget() {
   const sectionsWidget = store.get().sectionsWidget;
   const container = document.getElementById("dashboard-sections-grid");
-  if (sectionsWidget.loading || sectionsWidget.failed) {
-    const renderedWidget = renderSections({
+  if (!container) return;
+  const sectionList = sectionsWidget.loading || sectionsWidget.failed ? [
+    renderSections({
       loading: sectionsWidget.loading,
       failed: sectionsWidget.failed,
       section: {
@@ -2148,223 +1700,123 @@ async function renderSectionsWidget() {
         outbounds: [],
         withTagSelect: false
       },
-      onTestLatency: () => {
-      },
       onChooseOutbound: () => {
-      },
-      latencyFetching: sectionsWidget.latencyFetching
-    });
-    return preserveScrollForPage(() => {
-      container.replaceChildren(renderedWidget);
-    });
-  }
-  const renderedWidgets = sectionsWidget.data.map(
-    (section) => renderSections({
-      loading: sectionsWidget.loading,
-      failed: sectionsWidget.failed,
-      section,
-      latencyFetching: sectionsWidget.latencyFetching,
-      onTestLatency: (tag) => {
-        if (section.withTagSelect) {
-          return handleTestGroupLatency(tag);
-        }
-        return handleTestProxyLatency(tag);
-      },
-      onChooseOutbound: (selector, tag) => {
-        handleChooseOutbound(selector, tag);
       }
     })
+  ] : sectionsWidget.data.map(
+    (section) => renderSections({
+      loading: false,
+      failed: false,
+      section,
+      onChooseOutbound: handleChooseOutbound
+    })
   );
-  return preserveScrollForPage(() => {
-    container.replaceChildren(...renderedWidgets);
-  });
+  preserveScrollForPage(() => container.replaceChildren(...sectionList));
 }
-async function renderBandwidthWidget() {
-  logger.debug("[DASHBOARD]", "renderBandwidthWidget");
+function renderBandwidthWidget() {
   const traffic = store.get().bandwidthWidget;
   const container = document.getElementById("dashboard-widget-traffic");
-  if (traffic.loading || traffic.failed) {
-    const renderedWidget2 = renderWidget({
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
       loading: traffic.loading,
       failed: traffic.failed,
-      title: "",
-      items: []
-    });
-    return container.replaceChildren(renderedWidget2);
-  }
-  const renderedWidget = renderWidget({
-    loading: traffic.loading,
-    failed: traffic.failed,
-    title: _("Traffic"),
-    items: [
-      { key: _("Uplink"), value: `${prettyBytes(traffic.data.up)}/s` },
-      { key: _("Downlink"), value: `${prettyBytes(traffic.data.down)}/s` }
-    ]
-  });
-  container.replaceChildren(renderedWidget);
+      title: _("Traffic"),
+      items: traffic.loading || traffic.failed ? [] : [
+        { key: _("Uplink"), value: `${prettyBytes(traffic.data.up)}/s` },
+        {
+          key: _("Downlink"),
+          value: `${prettyBytes(traffic.data.down)}/s`
+        }
+      ]
+    })
+  );
 }
-async function renderTrafficTotalWidget() {
-  logger.debug("[DASHBOARD]", "renderTrafficTotalWidget");
-  const trafficTotalWidget = store.get().trafficTotalWidget;
+function renderTrafficTotalWidget() {
+  const traffic = store.get().trafficTotalWidget;
   const container = document.getElementById("dashboard-widget-traffic-total");
-  if (trafficTotalWidget.loading || trafficTotalWidget.failed) {
-    const renderedWidget2 = renderWidget({
-      loading: trafficTotalWidget.loading,
-      failed: trafficTotalWidget.failed,
-      title: "",
-      items: []
-    });
-    return container.replaceChildren(renderedWidget2);
-  }
-  const renderedWidget = renderWidget({
-    loading: trafficTotalWidget.loading,
-    failed: trafficTotalWidget.failed,
-    title: _("Traffic Total"),
-    items: [
-      {
-        key: _("Uplink"),
-        value: String(prettyBytes(trafficTotalWidget.data.uploadTotal))
-      },
-      {
-        key: _("Downlink"),
-        value: String(prettyBytes(trafficTotalWidget.data.downloadTotal))
-      }
-    ]
-  });
-  container.replaceChildren(renderedWidget);
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
+      loading: traffic.loading,
+      failed: traffic.failed,
+      title: _("Traffic Total"),
+      items: traffic.loading || traffic.failed ? [] : [
+        {
+          key: _("Uplink"),
+          value: prettyBytes(traffic.data.uploadTotal)
+        },
+        {
+          key: _("Downlink"),
+          value: prettyBytes(traffic.data.downloadTotal)
+        }
+      ]
+    })
+  );
 }
-async function renderSystemInfoWidget() {
-  logger.debug("[DASHBOARD]", "renderSystemInfoWidget");
-  const systemInfoWidget = store.get().systemInfoWidget;
-  const container = document.getElementById("dashboard-widget-system-info");
-  if (systemInfoWidget.loading || systemInfoWidget.failed) {
-    const renderedWidget2 = renderWidget({
-      loading: systemInfoWidget.loading,
-      failed: systemInfoWidget.failed,
-      title: "",
-      items: []
-    });
-    return container.replaceChildren(renderedWidget2);
-  }
-  const renderedWidget = renderWidget({
-    loading: systemInfoWidget.loading,
-    failed: systemInfoWidget.failed,
-    title: _("System info"),
-    items: [
-      {
-        key: _("Active Connections"),
-        value: String(systemInfoWidget.data.connections)
-      },
-      {
-        key: _("Memory Usage"),
-        value: String(prettyBytes(systemInfoWidget.data.memory))
-      }
-    ]
-  });
-  container.replaceChildren(renderedWidget);
-}
-async function renderServicesInfoWidget() {
-  logger.debug("[DASHBOARD]", "renderServicesInfoWidget");
-  const servicesInfoWidget = store.get().servicesInfoWidget;
+function renderServicesInfoWidget() {
+  const services = store.get().servicesInfoWidget;
   const container = document.getElementById("dashboard-widget-service-info");
-  if (servicesInfoWidget.loading || servicesInfoWidget.failed) {
-    const renderedWidget2 = renderWidget({
-      loading: servicesInfoWidget.loading,
-      failed: servicesInfoWidget.failed,
-      title: "",
-      items: []
-    });
-    return container.replaceChildren(renderedWidget2);
-  }
-  const renderedWidget = renderWidget({
-    loading: servicesInfoWidget.loading,
-    failed: servicesInfoWidget.failed,
-    title: _("Services info"),
-    items: [
-      {
-        key: _("Perekop"),
-        value: servicesInfoWidget.data.perekop ? _("\u2714 Enabled") : _("\u2718 Disabled"),
-        attributes: {
-          class: servicesInfoWidget.data.perekop ? "pdk_dashboard-page__widgets-section__item__row--success" : "pdk_dashboard-page__widgets-section__item__row--error"
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
+      loading: services.loading,
+      failed: services.failed,
+      title: _("Services info"),
+      items: services.loading || services.failed ? [] : [
+        {
+          key: _("Perekop"),
+          value: services.data.perekop ? _("\u2714 Enabled") : _("\u2718 Disabled"),
+          attributes: {
+            class: services.data.perekop ? "pdk_dashboard-page__widgets-section__item__row--success" : "pdk_dashboard-page__widgets-section__item__row--error"
+          }
+        },
+        {
+          key: _("Xray"),
+          value: services.data.xray ? _("\u2714 Running") : _("\u2718 Stopped"),
+          attributes: {
+            class: services.data.xray ? "pdk_dashboard-page__widgets-section__item__row--success" : "pdk_dashboard-page__widgets-section__item__row--error"
+          }
         }
-      },
-      {
-        key: _("Sing-box"),
-        value: servicesInfoWidget.data.singbox ? _("\u2714 Running") : _("\u2718 Stopped"),
-        attributes: {
-          class: servicesInfoWidget.data.singbox ? "pdk_dashboard-page__widgets-section__item__row--success" : "pdk_dashboard-page__widgets-section__item__row--error"
-        }
-      }
-    ]
-  });
-  container.replaceChildren(renderedWidget);
+      ]
+    })
+  );
 }
-async function onStoreUpdate(next, prev, diff) {
-  if (diff.sectionsWidget) {
-    renderSectionsWidget();
-  }
-  if (diff.bandwidthWidget) {
-    renderBandwidthWidget();
-  }
-  if (diff.trafficTotalWidget) {
-    renderTrafficTotalWidget();
-  }
-  if (diff.systemInfoWidget) {
-    renderSystemInfoWidget();
-  }
-  if (diff.servicesInfoWidget) {
-    renderServicesInfoWidget();
-  }
+function onStoreUpdate(_next, _prev, diff) {
+  if (diff.sectionsWidget) renderSectionsWidget();
+  if (diff.bandwidthWidget) renderBandwidthWidget();
+  if (diff.trafficTotalWidget) renderTrafficTotalWidget();
+  if (diff.servicesInfoWidget) renderServicesInfoWidget();
 }
 async function onPageMount() {
   onPageUnmount();
   store.subscribe(onStoreUpdate);
-  await fetchDashboardSections();
-  await fetchServicesInfo();
-  await connectToClashSockets();
+  await Promise.all([fetchDashboardSections(), fetchServicesInfo()]);
+  previousTraffic = void 0;
+  void pollTraffic();
 }
 function onPageUnmount() {
   store.unsubscribe(onStoreUpdate);
+  clearTimeout(trafficTimer);
+  trafficTimer = void 0;
+  previousTraffic = void 0;
   store.reset([
     "bandwidthWidget",
     "trafficTotalWidget",
-    "systemInfoWidget",
     "servicesInfoWidget",
     "sectionsWidget"
   ]);
-  socket.resetAll();
 }
 function registerLifecycleListeners() {
   store.subscribe((next, prev, diff) => {
-    if (diff.tabService && next.tabService.current !== prev.tabService.current) {
-      logger.debug(
-        "[DASHBOARD]",
-        "active tab diff event, active tab:",
-        diff.tabService.current
-      );
-      const isDashboardVisible = next.tabService.current === "dashboard";
-      if (isDashboardVisible) {
-        logger.debug(
-          "[DASHBOARD]",
-          "registerLifecycleListeners",
-          "onPageMount"
-        );
-        return onPageMount();
-      }
-      if (!isDashboardVisible) {
-        logger.debug(
-          "[DASHBOARD]",
-          "registerLifecycleListeners",
-          "onPageUnmount"
-        );
-        return onPageUnmount();
-      }
-    }
+    if (!diff.tabService || next.tabService.current === prev.tabService.current)
+      return;
+    if (next.tabService.current === "dashboard") void onPageMount();
+    else onPageUnmount();
   });
 }
 async function initController() {
   onMount("dashboard-status").then(() => {
-    logger.debug("[DASHBOARD]", "initController", "onMount");
     onPageMount();
     registerLifecycleListeners();
   });
@@ -2464,30 +1916,6 @@ var styles = `
     border-color: var(--success-color-medium, green);
 }
 
-.pdk_dashboard-page__outbound-grid__item__footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 10px;
-}
-
-.pdk_dashboard-page__outbound-grid__item__type {}
-
-.pdk_dashboard-page__outbound-grid__item__latency--empty {
-    color: var(--primary-color-low, lightgray);
-}
-
-.pdk_dashboard-page__outbound-grid__item__latency--green {
-    color: var(--success-color-medium, green);
-}
-
-.pdk_dashboard-page__outbound-grid__item__latency--yellow {
-    color: var(--warn-color-medium, orange);
-}
-
-.pdk_dashboard-page__outbound-grid__item__latency--red {
-    color: var(--error-color-medium, red);
-}
 
 `;
 
@@ -2585,7 +2013,7 @@ async function runDnsCheck() {
     state,
     items: [
       ...insertIf(
-        data.dns_type === "doh" || data.dns_type === "dot" || !data.bootstrap_dns_status,
+        data.dns_type === "doh" || !data.bootstrap_dns_status,
         [
           {
             state: data.bootstrap_dns_status ? "success" : "error",
@@ -2616,9 +2044,9 @@ async function runDnsCheck() {
   }
 }
 
-// src/perekop/tabs/diagnostic/checks/runSingBoxCheck.ts
-async function runSingBoxCheck() {
-  const { order, title, code } = DIAGNOSTICS_CHECKS_MAP.SINGBOX;
+// src/perekop/tabs/diagnostic/checks/runXrayCheck.ts
+async function runXrayCheck() {
+  const { order, title, code } = DIAGNOSTICS_CHECKS_MAP.XRAY;
   updateCheckStore({
     order,
     code,
@@ -2627,8 +2055,8 @@ async function runSingBoxCheck() {
     state: "loading",
     items: []
   });
-  const singBoxChecks = await PerekopShellMethods.checkSingBox();
-  if (!singBoxChecks.success) {
+  const xrayChecks = await PerekopShellMethods.checkXray();
+  if (!xrayChecks.success) {
     updateCheckStore({
       order,
       code,
@@ -2637,11 +2065,22 @@ async function runSingBoxCheck() {
       state: "error",
       items: []
     });
-    throw new Error("Sing-box checks failed");
+    throw new Error("Xray checks failed");
   }
-  const data = singBoxChecks.data;
-  const allGood = Boolean(data.sing_box_installed) && Boolean(data.sing_box_version_ok) && Boolean(data.sing_box_service_exist) && Boolean(data.sing_box_autostart_disabled) && Boolean(data.sing_box_process_running) && Boolean(data.sing_box_ports_listening);
-  const atLeastOneGood = Boolean(data.sing_box_installed) || Boolean(data.sing_box_version_ok) || Boolean(data.sing_box_service_exist) || Boolean(data.sing_box_autostart_disabled) || Boolean(data.sing_box_process_running) || Boolean(data.sing_box_ports_listening);
+  const data = xrayChecks.data;
+  const checks2 = [
+    [data.xray_installed, _("Xray installed")],
+    [
+      data.xray_version_ok,
+      _("Xray version is compatible (newer than 25.1.30)")
+    ],
+    [data.xray_service_exist, _("Xray service exist")],
+    [data.xray_autostart_disabled, _("Xray autostart disabled")],
+    [data.xray_process_running, _("Xray process running")],
+    [data.xray_ports_listening, _("Xray listening ports")]
+  ];
+  const allGood = checks2.every(([value]) => Boolean(value));
+  const atLeastOneGood = checks2.some(([value]) => Boolean(value));
   const { state, description } = getMeta({ atLeastOneGood, allGood });
   updateCheckStore({
     order,
@@ -2649,42 +2088,14 @@ async function runSingBoxCheck() {
     title,
     description,
     state,
-    items: [
-      {
-        state: data.sing_box_installed ? "success" : "error",
-        key: _("Sing-box installed"),
-        value: ""
-      },
-      {
-        state: data.sing_box_version_ok ? "success" : "error",
-        key: _("Sing-box version is compatible (newer than 1.12.4)"),
-        value: ""
-      },
-      {
-        state: data.sing_box_service_exist ? "success" : "error",
-        key: _("Sing-box service exist"),
-        value: ""
-      },
-      {
-        state: data.sing_box_autostart_disabled ? "success" : "error",
-        key: _("Sing-box autostart disabled"),
-        value: ""
-      },
-      {
-        state: data.sing_box_process_running ? "success" : "error",
-        key: _("Sing-box process running"),
-        value: ""
-      },
-      {
-        state: data.sing_box_ports_listening ? "success" : "error",
-        key: _("Sing-box listening ports"),
-        value: ""
-      }
-    ]
+    items: checks2.map(([value, key]) => ({
+      state: value ? "success" : "error",
+      key,
+      value: ""
+    }))
   });
-  if (!atLeastOneGood || !data.sing_box_process_running) {
-    throw new Error("Sing-box checks failed");
-  }
+  if (!atLeastOneGood || !data.xray_process_running)
+    throw new Error("Xray checks failed");
 }
 
 // src/perekop/tabs/diagnostic/checks/runNftCheck.ts
@@ -2784,13 +2195,13 @@ async function runFakeIPCheck() {
   const routerFakeIPResponse = await PerekopShellMethods.checkFakeIP();
   const checkFakeIPResponse = await RemoteFakeIPMethods.getFakeIpCheck();
   const checkIPResponse = await RemoteFakeIPMethods.getIpCheck();
-  const checks = {
+  const checks2 = {
     router: routerFakeIPResponse.success && routerFakeIPResponse.data.fakeip,
     browserFakeIP: checkFakeIPResponse.success && checkFakeIPResponse.data.fakeip,
     differentIP: checkFakeIPResponse.success && checkIPResponse.success && checkFakeIPResponse.data.IP !== checkIPResponse.data.IP
   };
-  const allGood = checks.router || checks.browserFakeIP || checks.differentIP;
-  const atLeastOneGood = checks.router && checks.browserFakeIP && checks.differentIP;
+  const allGood = checks2.router || checks2.browserFakeIP || checks2.differentIP;
+  const atLeastOneGood = checks2.router && checks2.browserFakeIP && checks2.differentIP;
   const { state, description } = getMeta({ atLeastOneGood, allGood });
   updateCheckStore({
     order,
@@ -2800,24 +2211,61 @@ async function runFakeIPCheck() {
     state,
     items: [
       {
-        state: checks.router ? "success" : "warning",
-        key: checks.router ? _("Router DNS is routed through sing-box") : _("Router DNS is not routed through sing-box"),
+        state: checks2.router ? "success" : "warning",
+        key: checks2.router ? _("Router DNS is routed through sing-box") : _("Router DNS is not routed through sing-box"),
         value: ""
       },
       {
-        state: checks.browserFakeIP ? "success" : "error",
-        key: checks.browserFakeIP ? _("Browser is using FakeIP correctly") : _("Browser is not using FakeIP"),
+        state: checks2.browserFakeIP ? "success" : "error",
+        key: checks2.browserFakeIP ? _("Browser is using FakeIP correctly") : _("Browser is not using FakeIP"),
         value: ""
       },
-      ...insertIf(checks.browserFakeIP, [
+      ...insertIf(checks2.browserFakeIP, [
         {
-          state: checks.differentIP ? "success" : "error",
-          key: checks.differentIP ? _("Proxy traffic is routed via FakeIP") : _("Proxy traffic is not routed via FakeIP"),
+          state: checks2.differentIP ? "success" : "error",
+          key: checks2.differentIP ? _("Proxy traffic is routed via FakeIP") : _("Proxy traffic is not routed via FakeIP"),
           value: ""
         }
       ])
     ]
   });
+}
+
+// src/perekop/tabs/diagnostic/checks/runSectionsCheck.ts
+async function runSectionsCheck() {
+  const { order, title, code } = DIAGNOSTICS_CHECKS_MAP.OUTBOUNDS;
+  updateCheckStore({
+    order,
+    code,
+    title,
+    description: _("Checking, please wait"),
+    state: "loading",
+    items: []
+  });
+  const sections = await getDashboardSections();
+  if (!sections.success) {
+    updateCheckStore({
+      order,
+      code,
+      title,
+      description: _("Cannot receive checks result"),
+      state: "error",
+      items: []
+    });
+    throw new Error("Sections checks failed");
+  }
+  const items = sections.data.map(
+    (section) => ({
+      state: section.outbounds.length ? "success" : "error",
+      key: section.displayName,
+      value: section.outbounds.length ? _("Available") : _("No outbounds")
+    })
+  );
+  const allGood = items.length > 0 && items.every((item) => item.state === "success");
+  const atLeastOneGood = items.some((item) => item.state === "success");
+  const { state, description } = getMeta({ atLeastOneGood, allGood });
+  updateCheckStore({ order, code, title, description, state, items });
+  if (!atLeastOneGood) throw new Error("Sections checks failed");
 }
 
 // src/partials/button/styles.ts
@@ -3519,7 +2967,7 @@ function renderAvailableActions({
   disable,
   globalCheck,
   viewLogs,
-  showSingBoxConfig
+  showXrayConfig
 }) {
   return E("div", { class: "pdk_diagnostic-page__right-bar__actions" }, [
     E("b", {}, _("Available actions")),
@@ -3591,13 +3039,13 @@ function renderAvailableActions({
         disabled: viewLogs.disabled
       })
     ]),
-    ...insertIf(showSingBoxConfig.visible, [
+    ...insertIf(showXrayConfig.visible, [
       renderButton({
-        onClick: showSingBoxConfig.onClick,
+        onClick: showXrayConfig.onClick,
         icon: renderCogIcon24,
-        text: _("Show sing-box config"),
-        loading: showSingBoxConfig.loading,
-        disabled: showSingBoxConfig.disabled
+        text: _("Show Xray config"),
+        loading: showXrayConfig.loading,
+        disabled: showXrayConfig.disabled
       })
     ])
   ]);
@@ -3807,14 +3255,6 @@ function renderSystemInfo({ items }) {
   ]);
 }
 
-// src/helpers/normalizeCompiledVersion.ts
-function normalizeCompiledVersion(version) {
-  if (version.includes("COMPILED")) {
-    return "dev";
-  }
-  return version;
-}
-
 // src/perekop/tabs/diagnostic/partials/renderWikiDisclaimer.ts
 function renderWikiDisclaimer(kind) {
   const iconWrap = E("span", {
@@ -3850,103 +3290,12 @@ function renderWikiDisclaimer(kind) {
   ]);
 }
 
-// src/perekop/tabs/diagnostic/checks/runSectionsCheck.ts
-async function runSectionsCheck() {
-  const { order, title, code } = DIAGNOSTICS_CHECKS_MAP.OUTBOUNDS;
-  updateCheckStore({
-    order,
-    code,
-    title,
-    description: _("Checking, please wait"),
-    state: "loading",
-    items: []
-  });
-  const sections = await getDashboardSections();
-  if (!sections.success) {
-    updateCheckStore({
-      order,
-      code,
-      title,
-      description: _("Cannot receive checks result"),
-      state: "error",
-      items: []
-    });
-    throw new Error("Sections checks failed");
+// src/helpers/normalizeCompiledVersion.ts
+function normalizeCompiledVersion(version) {
+  if (version.includes("COMPILED")) {
+    return "dev";
   }
-  const items = await Promise.all(
-    sections.data.map(async (section) => {
-      async function getLatency() {
-        if (section.withTagSelect) {
-          const latencyGroup = await PerekopShellMethods.getClashApiGroupLatency(
-            section.code
-          );
-          const selectedOutbound = section.outbounds.find(
-            (item) => item.selected
-          );
-          const isUrlTest = selectedOutbound?.type === "URLTest";
-          const success3 = latencyGroup.success && !latencyGroup.data.message;
-          if (success3) {
-            if (isUrlTest) {
-              const latency2 = Object.values(latencyGroup.data).map((item) => item ? `${item}ms` : "n/a").join(" / ");
-              return {
-                success: true,
-                latency: `[${_("Fastest")}] ${latency2}`
-              };
-            }
-            const selectedProxyDelay = latencyGroup.data?.[selectedOutbound?.code ?? ""];
-            if (selectedProxyDelay) {
-              return {
-                success: true,
-                latency: `[${selectedOutbound?.displayName ?? ""}] ${selectedProxyDelay}ms`
-              };
-            }
-            return {
-              success: false,
-              latency: `[${selectedOutbound?.displayName ?? ""}] ${_("Not responding")}`
-            };
-          }
-          return {
-            success: false,
-            latency: _("Not responding")
-          };
-        }
-        const latencyProxy = await PerekopShellMethods.getClashApiProxyLatency(
-          section.code
-        );
-        const success2 = latencyProxy.success && !latencyProxy.data.message;
-        if (success2) {
-          return {
-            success: true,
-            latency: `${latencyProxy.data.delay} ms`
-          };
-        }
-        return {
-          success: false,
-          latency: _("Not responding")
-        };
-      }
-      const { latency, success } = await getLatency();
-      return {
-        state: success ? "success" : "error",
-        key: section.displayName,
-        value: latency
-      };
-    })
-  );
-  const allGood = items.every((item) => item.state === "success");
-  const atLeastOneGood = items.some((item) => item.state === "success");
-  const { state, description } = getMeta({ atLeastOneGood, allGood });
-  updateCheckStore({
-    order,
-    code,
-    title,
-    description,
-    state,
-    items
-  });
-  if (!atLeastOneGood) {
-    throw new Error("Sections checks failed");
-  }
+  return version;
 }
 
 // src/helpers/removeVersionPrefix.ts
@@ -3994,418 +3343,199 @@ function getPerekopVersionRow(diagnosticsSystemInfo) {
 
 // src/perekop/tabs/diagnostic/initController.ts
 async function fetchSystemInfo() {
-  const systemInfo = await PerekopShellMethods.getSystemInfo();
-  if (systemInfo.success) {
-    store.set({
-      diagnosticsSystemInfo: {
-        loading: false,
-        ...systemInfo.data
-      }
-    });
-  } else {
-    store.set({
-      diagnosticsSystemInfo: {
-        loading: false,
-        perekop_version: _("unknown"),
-        perekop_latest_version: _("unknown"),
-        luci_app_version: _("unknown"),
-        sing_box_version: _("unknown"),
-        openwrt_version: _("unknown"),
-        device_model: _("unknown")
-      }
-    });
-  }
+  const result = await PerekopShellMethods.getSystemInfo();
+  store.set({
+    diagnosticsSystemInfo: result.success ? { loading: false, ...result.data } : {
+      loading: false,
+      perekop_version: _("unknown"),
+      perekop_latest_version: _("unknown"),
+      luci_app_version: _("unknown"),
+      xray_version: _("unknown"),
+      openwrt_version: _("unknown"),
+      device_model: _("unknown")
+    }
+  });
 }
 function renderDiagnosticsChecks() {
-  logger.debug("[DIAGNOSTIC]", "renderDiagnosticsChecks");
-  const diagnosticsChecks = store.get().diagnosticsChecks.sort((a, b) => a.order - b.order);
   const container = document.getElementById("pdk_diagnostic-page-checks");
-  const renderedDiagnosticsChecks = diagnosticsChecks.map(
-    (check) => renderCheckSection(check)
-  );
-  return preserveScrollForPage(() => {
-    container.replaceChildren(...renderedDiagnosticsChecks);
-  });
+  if (!container) return;
+  const checks2 = [...store.get().diagnosticsChecks].sort((a, b) => a.order - b.order).map(renderCheckSection);
+  preserveScrollForPage(() => container.replaceChildren(...checks2));
 }
 function renderDiagnosticRunActionWidget() {
-  logger.debug("[DIAGNOSTIC]", "renderDiagnosticRunActionWidget");
-  const { loading } = store.get().diagnosticsRunAction;
   const container = document.getElementById("pdk_diagnostic-page-run-check");
-  const renderedAction = renderRunAction({
-    loading,
-    click: () => runChecks()
-  });
-  return preserveScrollForPage(() => {
-    container.replaceChildren(renderedAction);
-  });
+  if (container)
+    container.replaceChildren(
+      renderRunAction({
+        loading: store.get().diagnosticsRunAction.loading,
+        click: runChecks
+      })
+    );
 }
-async function handleRestart() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      restart: { loading: true }
-    }
-  });
+async function runAction(key, action) {
+  const actions = store.get().diagnosticsActions;
+  store.set({ diagnosticsActions: { ...actions, [key]: { loading: true } } });
   try {
-    await PerekopShellMethods.restart();
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleRestart - e", e);
-  } finally {
-    setTimeout(async () => {
-      await fetchServicesInfo();
-      store.set({
-        diagnosticsActions: {
-          ...diagnosticsActions,
-          restart: { loading: false }
-        }
-      });
-      store.reset(["diagnosticsChecks"]);
-    }, 5e3);
-  }
-}
-async function handleStop() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      stop: { loading: true }
-    }
-  });
-  try {
-    await PerekopShellMethods.stop();
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleStop - e", e);
+    await action();
+  } catch (error) {
+    logger.error("[DIAGNOSTIC]", key, error);
   } finally {
     await fetchServicesInfo();
     store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        stop: { loading: false }
-      }
-    });
-    store.reset(["diagnosticsChecks"]);
-  }
-}
-async function handleStart() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      start: { loading: true }
-    }
-  });
-  try {
-    await PerekopShellMethods.start();
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleStart - e", e);
-  } finally {
-    setTimeout(async () => {
-      await fetchServicesInfo();
-      store.set({
-        diagnosticsActions: {
-          ...diagnosticsActions,
-          start: { loading: false }
-        }
-      });
-      store.reset(["diagnosticsChecks"]);
-    }, 5e3);
-  }
-}
-async function handleEnable() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      enable: { loading: true }
-    }
-  });
-  try {
-    await PerekopShellMethods.enable();
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleEnable - e", e);
-  } finally {
-    await fetchServicesInfo();
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        enable: { loading: false }
-      }
-    });
-  }
-}
-async function handleDisable() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      disable: { loading: true }
-    }
-  });
-  try {
-    await PerekopShellMethods.disable();
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleDisable - e", e);
-  } finally {
-    await fetchServicesInfo();
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        disable: { loading: false }
-      }
+      diagnosticsActions: { ...actions, [key]: { loading: false } }
     });
   }
 }
 async function handleShowGlobalCheck() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      globalCheck: { loading: true }
-    }
-  });
-  try {
-    const globalCheck = await PerekopShellMethods.globalCheck();
-    if (globalCheck.success) {
-      ui.showModal(
-        _("Global check"),
-        renderModal(globalCheck.data, "global_check")
-      );
-    } else {
-      logger.error("[DIAGNOSTIC]", "handleShowGlobalCheck - e", globalCheck);
-      showToast(_("Failed to execute!"), "error");
-    }
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleShowGlobalCheck - e", e);
-    showToast(_("Failed to execute!"), "error");
-  } finally {
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        globalCheck: { loading: false }
-      }
-    });
-  }
+  const result = await PerekopShellMethods.globalCheck();
+  if (result.success)
+    ui.showModal(
+      _("Global check"),
+      renderModal(result.data, "global_check")
+    );
+  else showToast(_("Failed to execute!"), "error");
 }
 async function handleViewLogs() {
-  const diagnosticsActions = store.get().diagnosticsActions;
+  const result = await PerekopShellMethods.checkLogs();
+  if (result.success)
+    ui.showModal(
+      _("View logs"),
+      renderModal(result.data, "view_logs")
+    );
+  else showToast(_("Failed to execute!"), "error");
+}
+async function handleShowXrayConfig() {
+  const actions = store.get().diagnosticsActions;
   store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      viewLogs: { loading: true }
-    }
+    diagnosticsActions: { ...actions, showXrayConfig: { loading: true } }
   });
   try {
-    const viewLogs = await PerekopShellMethods.checkLogs();
-    if (viewLogs.success) {
+    const result = await PerekopShellMethods.showXrayConfig();
+    if (result.success)
       ui.showModal(
-        _("View logs"),
-        renderModal(viewLogs.data, "view_logs")
+        _("Show Xray config"),
+        renderModal(JSON.stringify(result.data, null, 2), "show_xray_config")
       );
-    } else {
-      logger.error("[DIAGNOSTIC]", "handleViewLogs - e", viewLogs);
-      showToast(_("Failed to execute!"), "error");
-    }
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleViewLogs - e", e);
-    showToast(_("Failed to execute!"), "error");
+    else showToast(_("Failed to execute!"), "error");
   } finally {
     store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        viewLogs: { loading: false }
-      }
+      diagnosticsActions: { ...actions, showXrayConfig: { loading: false } }
     });
   }
-}
-async function handleShowSingBoxConfig() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      showSingBoxConfig: { loading: true }
-    }
-  });
-  try {
-    const showSingBoxConfig = await PerekopShellMethods.showSingBoxConfig();
-    if (showSingBoxConfig.success) {
-      ui.showModal(
-        _("Show sing-box config"),
-        renderModal(
-          JSON.stringify(showSingBoxConfig.data, null, 2),
-          "show_sing_box_config"
-        )
-      );
-    } else {
-      logger.error(
-        "[DIAGNOSTIC]",
-        "handleShowSingBoxConfig - e",
-        showSingBoxConfig
-      );
-      showToast(_("Failed to execute!"), "error");
-    }
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "handleShowSingBoxConfig - e", e);
-    showToast(_("Failed to execute!"), "error");
-  } finally {
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        showSingBoxConfig: { loading: false }
-      }
-    });
-  }
-}
-function renderWikiDisclaimerWidget() {
-  const diagnosticsChecks = store.get().diagnosticsChecks;
-  function getWikiKind() {
-    const allResults = diagnosticsChecks.map((check) => check.state);
-    if (allResults.includes("error")) {
-      return "error";
-    }
-    if (allResults.includes("warning")) {
-      return "warning";
-    }
-    return "default";
-  }
-  const container = document.getElementById("pdk_diagnostic-page-wiki");
-  return preserveScrollForPage(() => {
-    container.replaceChildren(renderWikiDisclaimer(getWikiKind()));
-  });
 }
 function renderDiagnosticAvailableActionsWidget() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  const servicesInfoWidget = store.get().servicesInfoWidget;
-  logger.debug("[DIAGNOSTIC]", "renderDiagnosticAvailableActionsWidget");
-  const perekopEnabled = Boolean(servicesInfoWidget.data.perekop);
-  const singBoxRunning = Boolean(servicesInfoWidget.data.singbox);
-  const atLeastOneServiceCommandLoading = servicesInfoWidget.loading || diagnosticsActions.restart.loading || diagnosticsActions.start.loading || diagnosticsActions.stop.loading;
+  const { diagnosticsActions: actions, servicesInfoWidget: services } = store.get();
   const container = document.getElementById("pdk_diagnostic-page-actions");
-  const renderedActions = renderAvailableActions({
-    restart: {
-      loading: diagnosticsActions.restart.loading,
-      visible: true,
-      onClick: handleRestart,
-      disabled: atLeastOneServiceCommandLoading
-    },
-    start: {
-      loading: diagnosticsActions.start.loading,
-      visible: !singBoxRunning,
-      onClick: handleStart,
-      disabled: atLeastOneServiceCommandLoading
-    },
-    stop: {
-      loading: diagnosticsActions.stop.loading,
-      visible: singBoxRunning,
-      onClick: handleStop,
-      disabled: atLeastOneServiceCommandLoading
-    },
-    enable: {
-      loading: diagnosticsActions.enable.loading,
-      visible: !perekopEnabled,
-      onClick: handleEnable,
-      disabled: atLeastOneServiceCommandLoading
-    },
-    disable: {
-      loading: diagnosticsActions.disable.loading,
-      visible: perekopEnabled,
-      onClick: handleDisable,
-      disabled: atLeastOneServiceCommandLoading
-    },
-    globalCheck: {
-      loading: diagnosticsActions.globalCheck.loading,
-      visible: true,
-      onClick: handleShowGlobalCheck,
-      disabled: atLeastOneServiceCommandLoading
-    },
-    viewLogs: {
-      loading: diagnosticsActions.viewLogs.loading,
-      visible: true,
-      onClick: handleViewLogs,
-      disabled: atLeastOneServiceCommandLoading
-    },
-    showSingBoxConfig: {
-      loading: diagnosticsActions.showSingBoxConfig.loading,
-      visible: true,
-      onClick: handleShowSingBoxConfig,
-      disabled: atLeastOneServiceCommandLoading
-    }
-  });
-  return preserveScrollForPage(() => {
-    container.replaceChildren(renderedActions);
-  });
+  if (!container) return;
+  const busy = services.loading || actions.restart.loading || actions.start.loading || actions.stop.loading;
+  const xrayRunning = Boolean(services.data.xray);
+  container.replaceChildren(
+    renderAvailableActions({
+      restart: {
+        loading: actions.restart.loading,
+        visible: true,
+        onClick: () => runAction("restart", PerekopShellMethods.restart),
+        disabled: busy
+      },
+      start: {
+        loading: actions.start.loading,
+        visible: !xrayRunning,
+        onClick: () => runAction("start", PerekopShellMethods.start),
+        disabled: busy
+      },
+      stop: {
+        loading: actions.stop.loading,
+        visible: xrayRunning,
+        onClick: () => runAction("stop", PerekopShellMethods.stop),
+        disabled: busy
+      },
+      enable: {
+        loading: actions.enable.loading,
+        visible: !services.data.perekop,
+        onClick: () => runAction("enable", PerekopShellMethods.enable),
+        disabled: busy
+      },
+      disable: {
+        loading: actions.disable.loading,
+        visible: Boolean(services.data.perekop),
+        onClick: () => runAction("disable", PerekopShellMethods.disable),
+        disabled: busy
+      },
+      globalCheck: {
+        loading: false,
+        visible: true,
+        onClick: handleShowGlobalCheck,
+        disabled: busy
+      },
+      viewLogs: {
+        loading: false,
+        visible: true,
+        onClick: handleViewLogs,
+        disabled: busy
+      },
+      showXrayConfig: {
+        loading: actions.showXrayConfig.loading,
+        visible: true,
+        onClick: handleShowXrayConfig,
+        disabled: busy
+      }
+    })
+  );
 }
 function renderDiagnosticSystemInfoWidget() {
-  logger.debug("[DIAGNOSTIC]", "renderDiagnosticSystemInfoWidget");
-  const diagnosticsSystemInfo = store.get().diagnosticsSystemInfo;
+  const info = store.get().diagnosticsSystemInfo;
   const container = document.getElementById("pdk_diagnostic-page-system-info");
-  const renderedSystemInfo = renderSystemInfo({
-    items: [
-      getPerekopVersionRow(diagnosticsSystemInfo),
-      {
-        key: "Luci App",
-        value: normalizeCompiledVersion(PEREKOP_LUCI_APP_VERSION)
-      },
-      {
-        key: "Sing-box",
-        value: diagnosticsSystemInfo.sing_box_version
-      },
-      {
-        key: "OS",
-        value: diagnosticsSystemInfo.openwrt_version
-      },
-      {
-        key: "Device",
-        value: diagnosticsSystemInfo.device_model
-      }
-    ]
-  });
-  return preserveScrollForPage(() => {
-    container.replaceChildren(renderedSystemInfo);
-  });
+  if (!container) return;
+  container.replaceChildren(
+    renderSystemInfo({
+      items: [
+        getPerekopVersionRow(info),
+        {
+          key: "Luci App",
+          value: normalizeCompiledVersion(PEREKOP_LUCI_APP_VERSION)
+        },
+        { key: "Xray", value: info.xray_version },
+        { key: "OS", value: info.openwrt_version },
+        { key: "Device", value: info.device_model }
+      ]
+    })
+  );
 }
-async function onStoreUpdate2(next, prev, diff) {
+function renderWiki() {
+  const container = document.getElementById("pdk_diagnostic-page-wiki");
+  if (container)
+    container.replaceChildren(
+      renderWikiDisclaimer(
+        store.get().diagnosticsChecks.some((check) => check.state === "error") ? "error" : "default"
+      )
+    );
+}
+function onStoreUpdate2(_next, _prev, diff) {
   if (diff.diagnosticsChecks) {
     renderDiagnosticsChecks();
-    renderWikiDisclaimerWidget();
+    renderWiki();
   }
-  if (diff.diagnosticsRunAction) {
-    renderDiagnosticRunActionWidget();
-  }
-  if (diff.diagnosticsActions || diff.servicesInfoWidget) {
+  if (diff.diagnosticsRunAction) renderDiagnosticRunActionWidget();
+  if (diff.diagnosticsActions || diff.servicesInfoWidget)
     renderDiagnosticAvailableActionsWidget();
-  }
-  if (diff.diagnosticsSystemInfo) {
-    renderDiagnosticSystemInfoWidget();
-  }
+  if (diff.diagnosticsSystemInfo) renderDiagnosticSystemInfoWidget();
 }
 async function runChecks() {
+  store.set({
+    diagnosticsRunAction: { loading: true },
+    diagnosticsChecks: loadingDiagnosticsChecksStore.diagnosticsChecks
+  });
   try {
-    store.set({
-      diagnosticsRunAction: { loading: true },
-      diagnosticsChecks: loadingDiagnosticsChecksStore.diagnosticsChecks
-    });
     await runDnsCheck();
-    await runSingBoxCheck();
+    await runXrayCheck();
     await runNftCheck();
     await runSectionsCheck();
     await runFakeIPCheck();
-  } catch (e) {
-    logger.error("[DIAGNOSTIC]", "runChecks - e", e);
+  } catch (error) {
+    logger.error("[DIAGNOSTIC]", "runChecks - e", error);
   } finally {
     store.set({ diagnosticsRunAction: { loading: false } });
   }
-}
-function onPageMount2() {
-  onPageUnmount2();
-  store.subscribe(onStoreUpdate2);
-  renderDiagnosticsChecks();
-  renderDiagnosticRunActionWidget();
-  renderDiagnosticAvailableActionsWidget();
-  renderDiagnosticSystemInfoWidget();
-  renderWikiDisclaimerWidget();
-  fetchServicesInfo();
-  fetchSystemInfo();
 }
 function onPageUnmount2() {
   store.unsubscribe(onStoreUpdate2);
@@ -4416,39 +3546,26 @@ function onPageUnmount2() {
     "diagnosticsRunAction"
   ]);
 }
-function registerLifecycleListeners2() {
-  store.subscribe((next, prev, diff) => {
-    if (diff.tabService && next.tabService.current !== prev.tabService.current) {
-      logger.debug(
-        "[DIAGNOSTIC]",
-        "active tab diff event, active tab:",
-        diff.tabService.current
-      );
-      const isDIAGNOSTICVisible = next.tabService.current === "diagnostic";
-      if (isDIAGNOSTICVisible) {
-        logger.debug(
-          "[DIAGNOSTIC]",
-          "registerLifecycleListeners",
-          "onPageMount"
-        );
-        return onPageMount2();
-      }
-      if (!isDIAGNOSTICVisible) {
-        logger.debug(
-          "[DIAGNOSTIC]",
-          "registerLifecycleListeners",
-          "onPageUnmount"
-        );
-        return onPageUnmount2();
-      }
-    }
-  });
+function onPageMount2() {
+  onPageUnmount2();
+  store.subscribe(onStoreUpdate2);
+  renderDiagnosticsChecks();
+  renderDiagnosticRunActionWidget();
+  renderDiagnosticAvailableActionsWidget();
+  renderDiagnosticSystemInfoWidget();
+  renderWiki();
+  void fetchServicesInfo();
+  void fetchSystemInfo();
 }
 async function initController2() {
   onMount("diagnostic-status").then(() => {
-    logger.debug("[DIAGNOSTIC]", "initController", "onMount");
     onPageMount2();
-    registerLifecycleListeners2();
+    store.subscribe((next, prev, diff) => {
+      if (diff.tabService && next.tabService.current !== prev.tabService.current) {
+        if (next.tabService.current === "diagnostic") onPageMount2();
+        else onPageUnmount2();
+      }
+    });
   });
 }
 
@@ -4853,16 +3970,6 @@ async function onMount(id) {
   });
 }
 
-// src/helpers/getClashApiUrl.ts
-function getClashWsUrl() {
-  const { hostname } = window.location;
-  return `ws://${hostname}:9090`;
-}
-function getClashUIUrl() {
-  const { hostname } = window.location;
-  return `http://${hostname}:9090/ui`;
-}
-
 // src/helpers/splitProxyString.ts
 function splitProxyString(str) {
   return str.split("\n").map((line) => line.trim()).filter((line) => !line.startsWith("//")).filter(Boolean);
@@ -4930,8 +4037,6 @@ return baseclass.extend({
   bulkValidate,
   coreService,
   executeShellCommand,
-  getClashUIUrl,
-  getClashWsUrl,
   getProxyUrlName,
   injectGlobalStyles,
   insertIf,
@@ -4942,7 +4047,6 @@ return baseclass.extend({
   parseQueryString,
   parseValueList,
   preserveScrollForPage,
-  socket,
   splitProxyString,
   store,
   svgEl,

@@ -6,14 +6,14 @@ PKG_VERSION := $(if $(PEREKOP_VERSION),$(PEREKOP_VERSION),0.$(shell date +%d%m%Y
 
 PKG_RELEASE:=1
 
-LUCI_TITLE:=LuCI perekop app
+LUCI_TITLE:=LuCI support for Perekop
 LUCI_DEPENDS:=+luci-base +perekop
 LUCI_PKGARCH:=all
 LUCI_LANG.ru:=Русский (Russian)
 LUCI_LANG.en:=English
 
 PKG_LICENSE:=GPL-2.0-or-later
-PKG_MAINTAINER:=ITDog <perekop@itdog.info>
+PKG_MAINTAINER:=tangenx <perekop@tangenx.dev>
 
 LUCI_LANGUAGES:=en ru
 

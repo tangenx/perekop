@@ -1,8 +1,9 @@
 import { onMount, preserveScrollForPage } from '../../../helpers';
 import { runDnsCheck } from './checks/runDnsCheck';
-import { runSingBoxCheck } from './checks/runSingBoxCheck';
+import { runXrayCheck } from './checks/runXrayCheck';
 import { runNftCheck } from './checks/runNftCheck';
 import { runFakeIPCheck } from './checks/runFakeIPCheck';
+import { runSectionsCheck } from './checks/runSectionsCheck';
 import { loadingDiagnosticsChecksStore } from './diagnostic.store';
 import { logger, store, StoreType } from '../../services';
 import {
@@ -10,6 +11,7 @@ import {
   renderCheckSection,
   renderRunAction,
   renderSystemInfo,
+  renderWikiDisclaimer,
 } from './partials';
 import { PerekopShellMethods } from '../../methods';
 import { fetchServicesInfo } from '../../fetchers';
@@ -17,511 +19,223 @@ import { normalizeCompiledVersion } from '../../../helpers/normalizeCompiledVers
 import { renderModal } from '../../../partials';
 import { PEREKOP_LUCI_APP_VERSION } from '../../../constants';
 import { showToast } from '../../../helpers/showToast';
-import { renderWikiDisclaimer } from './partials/renderWikiDisclaimer';
-import { runSectionsCheck } from './checks/runSectionsCheck';
 import { getPerekopVersionRow } from './helpers/getPerekopVersionRow';
 
 async function fetchSystemInfo() {
-  const systemInfo = await PerekopShellMethods.getSystemInfo();
-
-  if (systemInfo.success) {
-    store.set({
-      diagnosticsSystemInfo: {
-        loading: false,
-        ...systemInfo.data,
-      },
-    });
-  } else {
-    store.set({
-      diagnosticsSystemInfo: {
-        loading: false,
-        perekop_version: _('unknown'),
-        perekop_latest_version: _('unknown'),
-        luci_app_version: _('unknown'),
-        sing_box_version: _('unknown'),
-        openwrt_version: _('unknown'),
-        device_model: _('unknown'),
-      },
-    });
-  }
+  const result = await PerekopShellMethods.getSystemInfo();
+  store.set({
+    diagnosticsSystemInfo: result.success
+      ? { loading: false, ...result.data }
+      : {
+          loading: false,
+          perekop_version: _('unknown'),
+          perekop_latest_version: _('unknown'),
+          luci_app_version: _('unknown'),
+          xray_version: _('unknown'),
+          openwrt_version: _('unknown'),
+          device_model: _('unknown'),
+        },
+  });
 }
-
 function renderDiagnosticsChecks() {
-  logger.debug('[DIAGNOSTIC]', 'renderDiagnosticsChecks');
-  const diagnosticsChecks = store
-    .get()
-    .diagnosticsChecks.sort((a, b) => a.order - b.order);
   const container = document.getElementById('pdk_diagnostic-page-checks');
-
-  const renderedDiagnosticsChecks = diagnosticsChecks.map((check) =>
-    renderCheckSection(check),
-  );
-
-  return preserveScrollForPage(() => {
-    container!.replaceChildren(...renderedDiagnosticsChecks);
-  });
+  if (!container) return;
+  const checks = [...store.get().diagnosticsChecks]
+    .sort((a, b) => a.order - b.order)
+    .map(renderCheckSection);
+  preserveScrollForPage(() => container.replaceChildren(...checks));
 }
-
 function renderDiagnosticRunActionWidget() {
-  logger.debug('[DIAGNOSTIC]', 'renderDiagnosticRunActionWidget');
-
-  const { loading } = store.get().diagnosticsRunAction;
   const container = document.getElementById('pdk_diagnostic-page-run-check');
-
-  const renderedAction = renderRunAction({
-    loading,
-    click: () => runChecks(),
-  });
-
-  return preserveScrollForPage(() => {
-    container!.replaceChildren(renderedAction);
-  });
+  if (container)
+    container.replaceChildren(
+      renderRunAction({
+        loading: store.get().diagnosticsRunAction.loading,
+        click: runChecks,
+      }),
+    );
 }
-
-async function handleRestart() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      restart: { loading: true },
-    },
-  });
-
+async function runAction(
+  key: 'restart' | 'start' | 'stop' | 'enable' | 'disable',
+  action: () => Promise<unknown>,
+) {
+  const actions = store.get().diagnosticsActions;
+  store.set({ diagnosticsActions: { ...actions, [key]: { loading: true } } });
   try {
-    await PerekopShellMethods.restart();
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleRestart - e', e);
-  } finally {
-    setTimeout(async () => {
-      await fetchServicesInfo();
-      store.set({
-        diagnosticsActions: {
-          ...diagnosticsActions,
-          restart: { loading: false },
-        },
-      });
-      store.reset(['diagnosticsChecks']);
-    }, 5000);
-  }
-}
-
-async function handleStop() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      stop: { loading: true },
-    },
-  });
-
-  try {
-    await PerekopShellMethods.stop();
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleStop - e', e);
+    await action();
+  } catch (error) {
+    logger.error('[DIAGNOSTIC]', key, error);
   } finally {
     await fetchServicesInfo();
     store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        stop: { loading: false },
-      },
-    });
-    store.reset(['diagnosticsChecks']);
-  }
-}
-
-async function handleStart() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      start: { loading: true },
-    },
-  });
-
-  try {
-    await PerekopShellMethods.start();
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleStart - e', e);
-  } finally {
-    setTimeout(async () => {
-      await fetchServicesInfo();
-      store.set({
-        diagnosticsActions: {
-          ...diagnosticsActions,
-          start: { loading: false },
-        },
-      });
-      store.reset(['diagnosticsChecks']);
-    }, 5000);
-  }
-}
-
-async function handleEnable() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      enable: { loading: true },
-    },
-  });
-
-  try {
-    await PerekopShellMethods.enable();
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleEnable - e', e);
-  } finally {
-    await fetchServicesInfo();
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        enable: { loading: false },
-      },
+      diagnosticsActions: { ...actions, [key]: { loading: false } },
     });
   }
 }
-
-async function handleDisable() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      disable: { loading: true },
-    },
-  });
-
-  try {
-    await PerekopShellMethods.disable();
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleDisable - e', e);
-  } finally {
-    await fetchServicesInfo();
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        disable: { loading: false },
-      },
-    });
-  }
-}
-
 async function handleShowGlobalCheck() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      globalCheck: { loading: true },
-    },
-  });
-
-  try {
-    const globalCheck = await PerekopShellMethods.globalCheck();
-
-    if (globalCheck.success) {
-      ui.showModal(
-        _('Global check'),
-        renderModal(globalCheck.data as string, 'global_check'),
-      );
-    } else {
-      logger.error('[DIAGNOSTIC]', 'handleShowGlobalCheck - e', globalCheck);
-      showToast(_('Failed to execute!'), 'error');
-    }
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleShowGlobalCheck - e', e);
-    showToast(_('Failed to execute!'), 'error');
-  } finally {
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        globalCheck: { loading: false },
-      },
-    });
-  }
+  const result = await PerekopShellMethods.globalCheck();
+  if (result.success)
+    ui.showModal(
+      _('Global check'),
+      renderModal(result.data as string, 'global_check'),
+    );
+  else showToast(_('Failed to execute!'), 'error');
 }
-
 async function handleViewLogs() {
-  const diagnosticsActions = store.get().diagnosticsActions;
+  const result = await PerekopShellMethods.checkLogs();
+  if (result.success)
+    ui.showModal(
+      _('View logs'),
+      renderModal(result.data as string, 'view_logs'),
+    );
+  else showToast(_('Failed to execute!'), 'error');
+}
+async function handleShowXrayConfig() {
+  const actions = store.get().diagnosticsActions;
   store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      viewLogs: { loading: true },
-    },
+    diagnosticsActions: { ...actions, showXrayConfig: { loading: true } },
   });
-
   try {
-    const viewLogs = await PerekopShellMethods.checkLogs();
-
-    if (viewLogs.success) {
+    const result = await PerekopShellMethods.showXrayConfig();
+    if (result.success)
       ui.showModal(
-        _('View logs'),
-        renderModal(viewLogs.data as string, 'view_logs'),
+        _('Show Xray config'),
+        renderModal(JSON.stringify(result.data, null, 2), 'show_xray_config'),
       );
-    } else {
-      logger.error('[DIAGNOSTIC]', 'handleViewLogs - e', viewLogs);
-      showToast(_('Failed to execute!'), 'error');
-    }
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleViewLogs - e', e);
-    showToast(_('Failed to execute!'), 'error');
+    else showToast(_('Failed to execute!'), 'error');
   } finally {
     store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        viewLogs: { loading: false },
-      },
+      diagnosticsActions: { ...actions, showXrayConfig: { loading: false } },
     });
   }
 }
-
-async function handleShowSingBoxConfig() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  store.set({
-    diagnosticsActions: {
-      ...diagnosticsActions,
-      showSingBoxConfig: { loading: true },
-    },
-  });
-
-  try {
-    const showSingBoxConfig = await PerekopShellMethods.showSingBoxConfig();
-
-    if (showSingBoxConfig.success) {
-      ui.showModal(
-        _('Show sing-box config'),
-        renderModal(
-          JSON.stringify(showSingBoxConfig.data, null, 2),
-          'show_sing_box_config',
-        ),
-      );
-    } else {
-      logger.error(
-        '[DIAGNOSTIC]',
-        'handleShowSingBoxConfig - e',
-        showSingBoxConfig,
-      );
-      showToast(_('Failed to execute!'), 'error');
-    }
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'handleShowSingBoxConfig - e', e);
-    showToast(_('Failed to execute!'), 'error');
-  } finally {
-    store.set({
-      diagnosticsActions: {
-        ...diagnosticsActions,
-        showSingBoxConfig: { loading: false },
-      },
-    });
-  }
-}
-
-function renderWikiDisclaimerWidget() {
-  const diagnosticsChecks = store.get().diagnosticsChecks;
-
-  function getWikiKind() {
-    const allResults = diagnosticsChecks.map((check) => check.state);
-
-    if (allResults.includes('error')) {
-      return 'error';
-    }
-
-    if (allResults.includes('warning')) {
-      return 'warning';
-    }
-
-    return 'default';
-  }
-
-  const container = document.getElementById('pdk_diagnostic-page-wiki');
-
-  return preserveScrollForPage(() => {
-    container!.replaceChildren(renderWikiDisclaimer(getWikiKind()));
-  });
-}
-
 function renderDiagnosticAvailableActionsWidget() {
-  const diagnosticsActions = store.get().diagnosticsActions;
-  const servicesInfoWidget = store.get().servicesInfoWidget;
-  logger.debug('[DIAGNOSTIC]', 'renderDiagnosticAvailableActionsWidget');
-
-  const perekopEnabled = Boolean(servicesInfoWidget.data.perekop);
-  const singBoxRunning = Boolean(servicesInfoWidget.data.singbox);
-  const atLeastOneServiceCommandLoading =
-    servicesInfoWidget.loading ||
-    diagnosticsActions.restart.loading ||
-    diagnosticsActions.start.loading ||
-    diagnosticsActions.stop.loading;
-
+  const { diagnosticsActions: actions, servicesInfoWidget: services } =
+    store.get();
   const container = document.getElementById('pdk_diagnostic-page-actions');
-
-  const renderedActions = renderAvailableActions({
-    restart: {
-      loading: diagnosticsActions.restart.loading,
-      visible: true,
-      onClick: handleRestart,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-    start: {
-      loading: diagnosticsActions.start.loading,
-      visible: !singBoxRunning,
-      onClick: handleStart,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-    stop: {
-      loading: diagnosticsActions.stop.loading,
-      visible: singBoxRunning,
-      onClick: handleStop,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-    enable: {
-      loading: diagnosticsActions.enable.loading,
-      visible: !perekopEnabled,
-      onClick: handleEnable,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-    disable: {
-      loading: diagnosticsActions.disable.loading,
-      visible: perekopEnabled,
-      onClick: handleDisable,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-    globalCheck: {
-      loading: diagnosticsActions.globalCheck.loading,
-      visible: true,
-      onClick: handleShowGlobalCheck,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-    viewLogs: {
-      loading: diagnosticsActions.viewLogs.loading,
-      visible: true,
-      onClick: handleViewLogs,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-    showSingBoxConfig: {
-      loading: diagnosticsActions.showSingBoxConfig.loading,
-      visible: true,
-      onClick: handleShowSingBoxConfig,
-      disabled: atLeastOneServiceCommandLoading,
-    },
-  });
-
-  return preserveScrollForPage(() => {
-    container!.replaceChildren(renderedActions);
-  });
+  if (!container) return;
+  const busy =
+    services.loading ||
+    actions.restart.loading ||
+    actions.start.loading ||
+    actions.stop.loading;
+  const xrayRunning = Boolean(services.data.xray);
+  container.replaceChildren(
+    renderAvailableActions({
+      restart: {
+        loading: actions.restart.loading,
+        visible: true,
+        onClick: () => runAction('restart', PerekopShellMethods.restart),
+        disabled: busy,
+      },
+      start: {
+        loading: actions.start.loading,
+        visible: !xrayRunning,
+        onClick: () => runAction('start', PerekopShellMethods.start),
+        disabled: busy,
+      },
+      stop: {
+        loading: actions.stop.loading,
+        visible: xrayRunning,
+        onClick: () => runAction('stop', PerekopShellMethods.stop),
+        disabled: busy,
+      },
+      enable: {
+        loading: actions.enable.loading,
+        visible: !services.data.perekop,
+        onClick: () => runAction('enable', PerekopShellMethods.enable),
+        disabled: busy,
+      },
+      disable: {
+        loading: actions.disable.loading,
+        visible: Boolean(services.data.perekop),
+        onClick: () => runAction('disable', PerekopShellMethods.disable),
+        disabled: busy,
+      },
+      globalCheck: {
+        loading: false,
+        visible: true,
+        onClick: handleShowGlobalCheck,
+        disabled: busy,
+      },
+      viewLogs: {
+        loading: false,
+        visible: true,
+        onClick: handleViewLogs,
+        disabled: busy,
+      },
+      showXrayConfig: {
+        loading: actions.showXrayConfig.loading,
+        visible: true,
+        onClick: handleShowXrayConfig,
+        disabled: busy,
+      },
+    }),
+  );
 }
-
 function renderDiagnosticSystemInfoWidget() {
-  logger.debug('[DIAGNOSTIC]', 'renderDiagnosticSystemInfoWidget');
-  const diagnosticsSystemInfo = store.get().diagnosticsSystemInfo;
-
+  const info = store.get().diagnosticsSystemInfo;
   const container = document.getElementById('pdk_diagnostic-page-system-info');
-
-  const renderedSystemInfo = renderSystemInfo({
-    items: [
-      getPerekopVersionRow(diagnosticsSystemInfo),
-      {
-        key: 'Luci App',
-        value: normalizeCompiledVersion(PEREKOP_LUCI_APP_VERSION),
-      },
-      {
-        key: 'Sing-box',
-        value: diagnosticsSystemInfo.sing_box_version,
-      },
-      {
-        key: 'OS',
-        value: diagnosticsSystemInfo.openwrt_version,
-      },
-      {
-        key: 'Device',
-        value: diagnosticsSystemInfo.device_model,
-      },
-    ],
-  });
-
-  return preserveScrollForPage(() => {
-    container!.replaceChildren(renderedSystemInfo);
-  });
+  if (!container) return;
+  container.replaceChildren(
+    renderSystemInfo({
+      items: [
+        getPerekopVersionRow(info),
+        {
+          key: 'Luci App',
+          value: normalizeCompiledVersion(PEREKOP_LUCI_APP_VERSION),
+        },
+        { key: 'Xray', value: info.xray_version },
+        { key: 'OS', value: info.openwrt_version },
+        { key: 'Device', value: info.device_model },
+      ],
+    }),
+  );
 }
-
-async function onStoreUpdate(
-  next: StoreType,
-  prev: StoreType,
+function renderWiki() {
+  const container = document.getElementById('pdk_diagnostic-page-wiki');
+  if (container)
+    container.replaceChildren(
+      renderWikiDisclaimer(
+        store.get().diagnosticsChecks.some((check) => check.state === 'error')
+          ? 'error'
+          : 'default',
+      ),
+    );
+}
+function onStoreUpdate(
+  _next: StoreType,
+  _prev: StoreType,
   diff: Partial<StoreType>,
 ) {
   if (diff.diagnosticsChecks) {
     renderDiagnosticsChecks();
-    renderWikiDisclaimerWidget();
+    renderWiki();
   }
-
-  if (diff.diagnosticsRunAction) {
-    renderDiagnosticRunActionWidget();
-  }
-
-  if (diff.diagnosticsActions || diff.servicesInfoWidget) {
+  if (diff.diagnosticsRunAction) renderDiagnosticRunActionWidget();
+  if (diff.diagnosticsActions || diff.servicesInfoWidget)
     renderDiagnosticAvailableActionsWidget();
-  }
-
-  if (diff.diagnosticsSystemInfo) {
-    renderDiagnosticSystemInfoWidget();
-  }
+  if (diff.diagnosticsSystemInfo) renderDiagnosticSystemInfoWidget();
 }
-
 async function runChecks() {
+  store.set({
+    diagnosticsRunAction: { loading: true },
+    diagnosticsChecks: loadingDiagnosticsChecksStore.diagnosticsChecks,
+  });
   try {
-    store.set({
-      diagnosticsRunAction: { loading: true },
-      diagnosticsChecks: loadingDiagnosticsChecksStore.diagnosticsChecks,
-    });
-
     await runDnsCheck();
-
-    await runSingBoxCheck();
-
+    await runXrayCheck();
     await runNftCheck();
-
     await runSectionsCheck();
-
     await runFakeIPCheck();
-  } catch (e) {
-    logger.error('[DIAGNOSTIC]', 'runChecks - e', e);
+  } catch (error) {
+    logger.error('[DIAGNOSTIC]', 'runChecks - e', error);
   } finally {
     store.set({ diagnosticsRunAction: { loading: false } });
   }
 }
-
-function onPageMount() {
-  // Cleanup before mount
-  onPageUnmount();
-
-  // Add new listener
-  store.subscribe(onStoreUpdate);
-
-  // Initial checks render
-  renderDiagnosticsChecks();
-
-  // Initial run checks action render
-  renderDiagnosticRunActionWidget();
-
-  // Initial available actions render
-  renderDiagnosticAvailableActionsWidget();
-
-  // Initial system info render
-  renderDiagnosticSystemInfoWidget();
-
-  // Initial Wiki disclaimer render
-  renderWikiDisclaimerWidget();
-
-  // Initial services info fetch
-  fetchServicesInfo();
-
-  // Initial system info fetch
-  fetchSystemInfo();
-}
-
 function onPageUnmount() {
-  // Remove old listener
   store.unsubscribe(onStoreUpdate);
-
-  // Clear store
   store.reset([
     'diagnosticsActions',
     'diagnosticsSystemInfo',
@@ -529,45 +243,28 @@ function onPageUnmount() {
     'diagnosticsRunAction',
   ]);
 }
-
-function registerLifecycleListeners() {
-  store.subscribe((next, prev, diff) => {
-    if (
-      diff.tabService &&
-      next.tabService.current !== prev.tabService.current
-    ) {
-      logger.debug(
-        '[DIAGNOSTIC]',
-        'active tab diff event, active tab:',
-        diff.tabService.current,
-      );
-      const isDIAGNOSTICVisible = next.tabService.current === 'diagnostic';
-
-      if (isDIAGNOSTICVisible) {
-        logger.debug(
-          '[DIAGNOSTIC]',
-          'registerLifecycleListeners',
-          'onPageMount',
-        );
-        return onPageMount();
-      }
-
-      if (!isDIAGNOSTICVisible) {
-        logger.debug(
-          '[DIAGNOSTIC]',
-          'registerLifecycleListeners',
-          'onPageUnmount',
-        );
-        return onPageUnmount();
-      }
-    }
-  });
+function onPageMount() {
+  onPageUnmount();
+  store.subscribe(onStoreUpdate);
+  renderDiagnosticsChecks();
+  renderDiagnosticRunActionWidget();
+  renderDiagnosticAvailableActionsWidget();
+  renderDiagnosticSystemInfoWidget();
+  renderWiki();
+  void fetchServicesInfo();
+  void fetchSystemInfo();
 }
-
 export async function initController(): Promise<void> {
   onMount('diagnostic-status').then(() => {
-    logger.debug('[DIAGNOSTIC]', 'initController', 'onMount');
     onPageMount();
-    registerLifecycleListeners();
+    store.subscribe((next, prev, diff) => {
+      if (
+        diff.tabService &&
+        next.tabService.current !== prev.tabService.current
+      ) {
+        if (next.tabService.current === 'diagnostic') onPageMount();
+        else onPageUnmount();
+      }
+    });
   });
 }

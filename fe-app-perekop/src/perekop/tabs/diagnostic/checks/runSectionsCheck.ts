@@ -1,5 +1,4 @@
 import { DIAGNOSTICS_CHECKS_MAP } from './contstants';
-import { PerekopShellMethods } from '../../../methods';
 import { updateCheckStore } from './updateCheckStore';
 import { getMeta } from '../helpers/getMeta';
 import { getDashboardSections } from '../../../methods/custom/getDashboardSections';
@@ -7,7 +6,6 @@ import { IDiagnosticsChecksItem } from '../../../services';
 
 export async function runSectionsCheck() {
   const { order, title, code } = DIAGNOSTICS_CHECKS_MAP.OUTBOUNDS;
-
   updateCheckStore({
     order,
     code,
@@ -16,9 +14,7 @@ export async function runSectionsCheck() {
     state: 'loading',
     items: [],
   });
-
   const sections = await getDashboardSections();
-
   if (!sections.success) {
     updateCheckStore({
       order,
@@ -28,105 +24,19 @@ export async function runSectionsCheck() {
       state: 'error',
       items: [],
     });
-
     throw new Error('Sections checks failed');
   }
-
-  const items = (await Promise.all(
-    sections.data.map(async (section) => {
-      async function getLatency() {
-        if (section.withTagSelect) {
-          const latencyGroup = await PerekopShellMethods.getClashApiGroupLatency(
-            section.code,
-          );
-
-          const selectedOutbound = section.outbounds.find(
-            (item) => item.selected,
-          );
-
-          const isUrlTest = selectedOutbound?.type === 'URLTest';
-
-          const success = latencyGroup.success && !latencyGroup.data.message;
-
-          if (success) {
-            if (isUrlTest) {
-              const latency = Object.values(latencyGroup.data)
-                .map((item) => (item ? `${item}ms` : 'n/a'))
-                .join(' / ');
-
-              return {
-                success: true,
-                latency: `[${_('Fastest')}] ${latency}`,
-              };
-            }
-
-            const selectedProxyDelay =
-              latencyGroup.data?.[selectedOutbound?.code ?? ''];
-
-            if (selectedProxyDelay) {
-              return {
-                success: true,
-                latency: `[${selectedOutbound?.displayName ?? ''}] ${selectedProxyDelay}ms`,
-              };
-            }
-
-            return {
-              success: false,
-              latency: `[${selectedOutbound?.displayName ?? ''}] ${_('Not responding')}`,
-            };
-          }
-
-          return {
-            success: false,
-            latency: _('Not responding'),
-          };
-        }
-
-        const latencyProxy = await PerekopShellMethods.getClashApiProxyLatency(
-          section.code,
-        );
-
-        const success = latencyProxy.success && !latencyProxy.data.message;
-
-        if (success) {
-          return {
-            success: true,
-            latency: `${latencyProxy.data.delay} ms`,
-          };
-        }
-
-        return {
-          success: false,
-          latency: _('Not responding'),
-        };
-      }
-
-      const { latency, success } = await getLatency();
-
-      return {
-        state: success ? 'success' : 'error',
-        key: section.displayName,
-        value: latency,
-      };
+  const items = sections.data.map(
+    (section): IDiagnosticsChecksItem => ({
+      state: section.outbounds.length ? 'success' : 'error',
+      key: section.displayName,
+      value: section.outbounds.length ? _('Available') : _('No outbounds'),
     }),
-  )) as Array<IDiagnosticsChecksItem>;
-
-  const allGood = items.every((item) => item.state === 'success');
-
+  );
+  const allGood =
+    items.length > 0 && items.every((item) => item.state === 'success');
   const atLeastOneGood = items.some((item) => item.state === 'success');
-
   const { state, description } = getMeta({ atLeastOneGood, allGood });
-
-  updateCheckStore({
-    order,
-    code,
-    title,
-    description,
-    state,
-    items,
-  });
-
-  if (!atLeastOneGood) {
-    throw new Error('Sections checks failed');
-  }
+  updateCheckStore({ order, code, title, description, state, items });
+  if (!atLeastOneGood) throw new Error('Sections checks failed');
 }

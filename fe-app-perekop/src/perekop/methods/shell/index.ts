@@ -1,5 +1,5 @@
 import { callBaseMethod } from './callBaseMethod';
-import { ClashAPI, Perekop } from '../../types';
+import { Perekop } from '../../types';
 
 export const PerekopShellMethods = {
   checkDNSAvailable: async () =>
@@ -16,31 +16,25 @@ export const PerekopShellMethods = {
     ),
   getStatus: async () =>
     callBaseMethod<Perekop.GetStatus>(Perekop.AvailableMethods.GET_STATUS),
-  checkSingBox: async () =>
-    callBaseMethod<Perekop.SingBoxCheckResult>(
-      Perekop.AvailableMethods.CHECK_SING_BOX,
+  checkXray: async () =>
+    callBaseMethod<Perekop.XrayCheckResult>(
+      Perekop.AvailableMethods.CHECK_XRAY,
     ),
-  getSingBoxStatus: async () =>
-    callBaseMethod<Perekop.GetSingBoxStatus>(
-      Perekop.AvailableMethods.GET_SING_BOX_STATUS,
+  getXrayStatus: async () =>
+    callBaseMethod<Perekop.GetXrayStatus>(
+      Perekop.AvailableMethods.GET_XRAY_STATUS,
     ),
-  getClashApiProxies: async () =>
-    callBaseMethod<ClashAPI.Proxies>(Perekop.AvailableMethods.CLASH_API, [
-      Perekop.AvailableClashAPIMethods.GET_PROXIES,
+  getXrayTraffic: async () =>
+    callBaseMethod<Perekop.XrayTraffic>(Perekop.AvailableMethods.XRAY_API, [
+      Perekop.AvailableXrayAPIMethods.GET_TRAFFIC,
     ]),
-  getClashApiProxyLatency: async (tag: string) =>
-    callBaseMethod<Perekop.GetClashApiProxyLatency>(
-      Perekop.AvailableMethods.CLASH_API,
-      [Perekop.AvailableClashAPIMethods.GET_PROXY_LATENCY, tag, '5000'],
-    ),
-  getClashApiGroupLatency: async (tag: string) =>
-    callBaseMethod<Perekop.GetClashApiGroupLatency>(
-      Perekop.AvailableMethods.CLASH_API,
-      [Perekop.AvailableClashAPIMethods.GET_GROUP_LATENCY, tag, '10000'],
-    ),
-  setClashApiGroupProxy: async (group: string, proxy: string) =>
-    callBaseMethod<unknown>(Perekop.AvailableMethods.CLASH_API, [
-      Perekop.AvailableClashAPIMethods.SET_GROUP_PROXY,
+  getXrayProxies: async () =>
+    callBaseMethod<Perekop.XrayProxies>(Perekop.AvailableMethods.XRAY_API, [
+      Perekop.AvailableXrayAPIMethods.GET_PROXIES,
+    ]),
+  setGroupProxy: async (group: string, proxy: string) =>
+    callBaseMethod<unknown>(Perekop.AvailableMethods.XRAY_API, [
+      Perekop.AvailableXrayAPIMethods.SET_GROUP_PROXY,
       group,
       proxy,
     ]),
@@ -76,14 +70,14 @@ export const PerekopShellMethods = {
     ),
   globalCheck: async () =>
     callBaseMethod<unknown>(Perekop.AvailableMethods.GLOBAL_CHECK),
-  showSingBoxConfig: async () =>
-    callBaseMethod<unknown>(Perekop.AvailableMethods.SHOW_SING_BOX_CONFIG),
+  showXrayConfig: async () =>
+    callBaseMethod<unknown>(Perekop.AvailableMethods.SHOW_XRAY_CONFIG),
   checkLogs: async () =>
     callBaseMethod<unknown>(Perekop.AvailableMethods.CHECK_LOGS),
   getSystemInfo: async () =>
     callBaseMethod<Perekop.GetSystemInfo>(
       Perekop.AvailableMethods.GET_SYSTEM_INFO,
     ),
-  getSingBoxFeatures: async () =>
-    callBaseMethod<string[]>(Perekop.AvailableMethods.GET_SING_BOX_FEATURES),
+  getXrayFeatures: async () =>
+    callBaseMethod<string[]>(Perekop.AvailableMethods.GET_XRAY_FEATURES),
 };

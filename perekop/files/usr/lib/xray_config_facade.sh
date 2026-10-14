@@ -194,6 +194,11 @@ xray_cf_add_proxy_outbound() {
         config=$(_add_outbound_transport "$config" "$tag" "$url")
         ;;
     hysteria2 | hy2)
+        if ! xray_has_feature "proxy.hysteria2"; then
+            log "The installed Xray does not support Hysteria2 (26.1.13 or newer is required). Run install.sh --xray-latest or remove the hysteria2 link of the $section section. Aborted." "fatal"
+            exit 1
+        fi
+
         local password obfs obfs_password
         password=$(url_get_userinfo "$url")
         obfs=$(url_get_query_param "$url" "obfs")

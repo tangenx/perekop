@@ -26,7 +26,7 @@ interface IRenderAvailableActionsProps {
   disable: ActionProps;
   globalCheck: ActionProps;
   viewLogs: ActionProps;
-  showSingBoxConfig: ActionProps;
+  showXrayConfig: ActionProps;
 }
 
 export function renderAvailableActions({
@@ -37,7 +37,7 @@ export function renderAvailableActions({
   disable,
   globalCheck,
   viewLogs,
-  showSingBoxConfig,
+  showXrayConfig,
 }: IRenderAvailableActionsProps) {
   return E('div', { class: 'pdk_diagnostic-page__right-bar__actions' }, [
     E('b', {}, _('Available actions')),
@@ -109,13 +109,13 @@ export function renderAvailableActions({
         disabled: viewLogs.disabled,
       }),
     ]),
-    ...insertIf(showSingBoxConfig.visible, [
+    ...insertIf(showXrayConfig.visible, [
       renderButton({
-        onClick: showSingBoxConfig.onClick,
+        onClick: showXrayConfig.onClick,
         icon: renderCogIcon24,
-        text: _('Show sing-box config'),
-        loading: showSingBoxConfig.loading,
-        disabled: showSingBoxConfig.disabled,
+        text: _('Show Xray config'),
+        loading: showXrayConfig.loading,
+        disabled: showXrayConfig.disabled,
       }),
     ]),
   ]);

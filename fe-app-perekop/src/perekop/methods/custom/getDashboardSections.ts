@@ -10,22 +10,10 @@ interface IGetDashboardSectionsResponse {
 
 export async function getDashboardSections(): Promise<IGetDashboardSectionsResponse> {
   const configSections = await getConfigSections();
-  const clashProxies = await PerekopShellMethods.getClashApiProxies();
+  const proxiesResponse = await PerekopShellMethods.getXrayProxies();
 
-  if (!clashProxies.success) {
-    return {
-      success: false,
-      data: [],
-    };
-  }
-
-  const proxies = Object.entries(clashProxies.data.proxies).map(
-    ([key, value]) => ({
-      code: key,
-      value,
-    }),
-  );
-
+  if (!proxiesResponse.success) return { success: false, data: [] };
+  const proxies = proxiesResponse.data;
   const data = configSections
     .filter(
       (section) =>
@@ -34,164 +22,87 @@ export async function getDashboardSections(): Promise<IGetDashboardSectionsRespo
         section['.type'] !== 'settings',
     )
     .map((section) => {
+      const name = section['.name'];
+      const proxyGroup = proxies[name];
+      const groupOutbound = (
+        tag: string,
+        displayName: string,
+        selected: boolean,
+      ): Perekop.Outbound => ({
+        code: tag,
+        displayName,
+        type: '',
+        selected,
+      });
+
       if (section.connection_type === 'proxy') {
-        if (section.proxy_config_type === 'url') {
-          const outbound = proxies.find(
-            (proxy) => proxy.code === `${section['.name']}-out`,
-          );
-
-          const activeConfigs = splitProxyString(section.proxy_string);
-
-          const proxyDisplayName =
-            getProxyUrlName(activeConfigs?.[0]) || outbound?.value?.name || '';
-
-          return {
-            withTagSelect: false,
-            code: outbound?.code || section['.name'],
-            displayName: section['.name'],
-            outbounds: [
-              {
-                code: outbound?.code || section['.name'],
-                displayName: proxyDisplayName,
-                latency: outbound?.value?.history?.[0]?.delay || 0,
-                type: outbound?.value?.type || '',
-                selected: true,
-              },
-            ],
-          };
-        }
-
-        if (section.proxy_config_type === 'outbound') {
-          const outbound = proxies.find(
-            (proxy) => proxy.code === `${section['.name']}-out`,
-          );
-
-          const parsedOutbound = JSON.parse(section.outbound_json);
-          const parsedTag = parsedOutbound?.tag
-            ? decodeURIComponent(parsedOutbound?.tag)
-            : undefined;
-          const proxyDisplayName = parsedTag || outbound?.value?.name || '';
-
-          return {
-            withTagSelect: false,
-            code: outbound?.code || section['.name'],
-            displayName: section['.name'],
-            outbounds: [
-              {
-                code: outbound?.code || section['.name'],
-                displayName: proxyDisplayName,
-                latency: outbound?.value?.history?.[0]?.delay || 0,
-                type: outbound?.value?.type || '',
-                selected: true,
-              },
-            ],
-          };
-        }
-
-        if (section.proxy_config_type === 'selector') {
-          const selector = proxies.find(
-            (proxy) => proxy.code === `${section['.name']}-out`,
-          );
-
-          const links = section.selector_proxy_links ?? [];
-
-          const outbounds = links
-            .map((link, index) => ({
-              link,
-              outbound: proxies.find(
-                (item) => item.code === `${section['.name']}-${index + 1}-out`,
-              ),
-            }))
-            .map((item) => ({
-              code: item?.outbound?.code || '',
-              displayName:
-                getProxyUrlName(item.link) || item?.outbound?.value?.name || '',
-              latency: item?.outbound?.value?.history?.[0]?.delay || 0,
-              type: item?.outbound?.value?.type || '',
-              selected: selector?.value?.now === item?.outbound?.code,
-            }));
-
+        if (
+          section.proxy_config_type === 'selector' ||
+          section.proxy_config_type === 'urltest'
+        ) {
+          const links =
+            section.proxy_config_type === 'selector'
+              ? (section.selector_proxy_links ?? [])
+              : [
+                  ...(section.urltest_proxy_links ?? []),
+                  ...(section.urltest_fallback_links ?? []),
+                ];
+          const outbounds = links.map((link, index) => {
+            const code = `${name}-${index + 1}-out`;
+            return groupOutbound(
+              code,
+              getProxyUrlName(link) || code,
+              proxyGroup?.selected === code,
+            );
+          });
           return {
             withTagSelect: true,
-            code: selector?.code || section['.name'],
-            displayName: section['.name'],
-            outbounds,
-          };
-        }
-
-        if (section.proxy_config_type === 'urltest') {
-          const selector = proxies.find(
-            (proxy) => proxy.code === `${section['.name']}-out`,
-          );
-          const outbound = proxies.find(
-            (proxy) => proxy.code === `${section['.name']}-urltest-out`,
-          );
-          // the group lists its proxy links, then its fallback links
-          const links = [
-            ...(section.urltest_proxy_links ?? []),
-            ...(section.urltest_fallback_links ?? []),
-          ];
-
-          const outbounds = (outbound?.value?.all ?? [])
-            .map((code) => proxies.find((item) => item.code === code))
-            .map((item, index) => ({
-              code: item?.code || '',
-              displayName:
-                getProxyUrlName(links[index]) || item?.value?.name || '',
-              latency: item?.value?.history?.[0]?.delay || 0,
-              type: item?.value?.type || '',
-              selected: selector?.value?.now === item?.code,
-            }));
-
-          return {
-            withTagSelect: true,
-            code: selector?.code || section['.name'],
-            displayName: section['.name'],
+            code: name,
+            displayName: name,
             outbounds: [
-              {
-                code: outbound?.code || '',
-                displayName: _('Fastest'),
-                latency: outbound?.value?.history?.[0]?.delay || 0,
-                type: outbound?.value?.type || '',
-                selected: selector?.value?.now === outbound?.code,
-              },
+              groupOutbound('', _('Auto'), !proxyGroup?.selected),
               ...outbounds,
             ],
           };
         }
+
+        const code = `${name}-out`;
+        let displayName = code;
+        if (section.proxy_config_type === 'url') {
+          displayName =
+            getProxyUrlName(splitProxyString(section.proxy_string)?.[0]) ||
+            code;
+        } else if (section.proxy_config_type === 'outbound') {
+          const parsedOutbound = JSON.parse(section.outbound_json);
+          displayName = parsedOutbound?.tag
+            ? decodeURIComponent(parsedOutbound.tag)
+            : code;
+        }
+        return {
+          withTagSelect: false,
+          code: name,
+          displayName: name,
+          outbounds: [groupOutbound(code, displayName, true)],
+        };
       }
 
       if (section.connection_type === 'vpn') {
-        const outbound = proxies.find(
-          (proxy) => proxy.code === `${section['.name']}-out`,
-        );
-
+        const code = `${name}-out`;
         return {
           withTagSelect: false,
-          code: outbound?.code || section['.name'],
-          displayName: section['.name'],
-          outbounds: [
-            {
-              code: outbound?.code || section['.name'],
-              displayName: section.interface || outbound?.value?.name || '',
-              latency: outbound?.value?.history?.[0]?.delay || 0,
-              type: outbound?.value?.type || '',
-              selected: true,
-            },
-          ],
+          code: name,
+          displayName: name,
+          outbounds: [groupOutbound(code, section.interface || code, true)],
         };
       }
 
       return {
         withTagSelect: false,
-        code: section['.name'],
-        displayName: section['.name'],
+        code: name,
+        displayName: name,
         outbounds: [],
       };
     });
 
-  return {
-    success: true,
-    data,
-  };
+  return { success: true, data };
 }

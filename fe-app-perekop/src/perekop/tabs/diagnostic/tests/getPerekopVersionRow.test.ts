@@ -10,7 +10,7 @@ function makeDiagnosticsSystemInfo(
     perekop_version: '1.2.3',
     perekop_latest_version: '1.2.3',
     luci_app_version: '1.0.0',
-    sing_box_version: '1.11.0',
+    xray_version: '25.1.30',
     openwrt_version: 'OpenWrt 25.12',
     device_model: 'Test Router',
     ...patch,

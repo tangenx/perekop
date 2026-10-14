@@ -137,10 +137,7 @@ export interface IDiagnosticsChecksStoreItem {
 }
 
 export interface StoreType {
-  tabService: {
-    current: string;
-    all: string[];
-  };
+  tabService: { current: string; all: string[] };
   bandwidthWidget: {
     loading: boolean;
     failed: boolean;
@@ -151,25 +148,17 @@ export interface StoreType {
     failed: boolean;
     data: { downloadTotal: number; uploadTotal: number };
   };
-  systemInfoWidget: {
-    loading: boolean;
-    failed: boolean;
-    data: { connections: number; memory: number };
-  };
   servicesInfoWidget: {
     loading: boolean;
     failed: boolean;
-    data: { singbox: number; perekop: number };
+    data: { xray: number; perekop: number };
   };
   sectionsWidget: {
     loading: boolean;
     failed: boolean;
     data: Perekop.OutboundGroup[];
-    latencyFetching: boolean;
   };
-  diagnosticsRunAction: {
-    loading: boolean;
-  };
+  diagnosticsRunAction: { loading: boolean };
   diagnosticsChecks: Array<IDiagnosticsChecksStoreItem>;
   diagnosticsActions: {
     restart: { loading: boolean };
@@ -179,14 +168,14 @@ export interface StoreType {
     disable: { loading: boolean };
     globalCheck: { loading: boolean };
     viewLogs: { loading: boolean };
-    showSingBoxConfig: { loading: boolean };
+    showXrayConfig: { loading: boolean };
   };
   diagnosticsSystemInfo: {
     loading: boolean;
     perekop_version: string;
     perekop_latest_version: string;
     luci_app_version: string;
-    sing_box_version: string;
+    xray_version: string;
     openwrt_version: string;
     device_model: string;
   };
@@ -207,20 +196,14 @@ const initialStore: StoreType = {
     failed: false,
     data: { downloadTotal: 0, uploadTotal: 0 },
   },
-  systemInfoWidget: {
-    loading: true,
-    failed: false,
-    data: { connections: 0, memory: 0 },
-  },
   servicesInfoWidget: {
     loading: true,
     failed: false,
-    data: { singbox: 0, perekop: 0 },
+    data: { xray: 0, perekop: 0 },
   },
   sectionsWidget: {
     loading: true,
     failed: false,
-    latencyFetching: false,
     data: [],
   },
   ...initialDiagnosticStore,

@@ -1,84 +1,47 @@
 // eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace ClashAPI {
-  export interface ProxyHistoryEntry {
-    time: string;
-    delay: number;
-  }
-
-  export interface ProxyBase {
-    type: string;
-    name: string;
-    udp: boolean;
-    history: ProxyHistoryEntry[];
-    now?: string;
-    all?: string[];
-  }
-
-  export interface Proxies {
-    proxies: Record<string, ProxyBase>;
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace Perekop {
-  // Available commands:
-  // start                   Start perekop service
-  // stop                    Stop perekop service
-  // reload                  Reload perekop configuration
-  // restart                 Restart perekop service
-  // enable                  Enable perekop autostart
-  // disable                 Disable perekop autostart
-  // main                    Run main perekop process
-  // list_update             Update domain lists
-  // check_proxy             Check proxy connectivity
-  // check_nft               Check NFT rules
-  // check_nft_rules         Check NFT rules status
-  // check_sing_box          Check sing-box installation and status
-  // check_logs              Show perekop logs from system journal
-  // check_sing_box_logs     Show sing-box logs
-  // check_fakeip            Test FakeIP on router
-  // clash_api               Clash API interface for managing proxies and groups
-  // show_config             Display current perekop configuration
-  // show_version            Show perekop version
-  // show_sing_box_config    Show sing-box configuration
-  // show_sing_box_version   Show sing-box version
-  // show_system_info        Show system information
-  // get_status              Get perekop service status
-  // get_sing_box_status     Get sing-box service status
-  // check_dns_available     Check DNS server availability
-  // global_check            Run global system check
-
   export enum AvailableMethods {
     CHECK_DNS_AVAILABLE = 'check_dns_available',
     CHECK_FAKEIP = 'check_fakeip',
     CHECK_NFT_RULES = 'check_nft_rules',
     GET_STATUS = 'get_status',
-    CHECK_SING_BOX = 'check_sing_box',
-    GET_SING_BOX_STATUS = 'get_sing_box_status',
-    CLASH_API = 'clash_api',
+    CHECK_XRAY = 'check_xray',
+    GET_XRAY_STATUS = 'get_xray_status',
+    XRAY_API = 'xray_api',
     RESTART = 'restart',
     START = 'start',
     STOP = 'stop',
     ENABLE = 'enable',
     DISABLE = 'disable',
     GLOBAL_CHECK = 'global_check',
-    SHOW_SING_BOX_CONFIG = 'show_sing_box_config',
+    SHOW_XRAY_CONFIG = 'show_xray_config',
     CHECK_LOGS = 'check_logs',
     GET_SYSTEM_INFO = 'get_system_info',
-    GET_SING_BOX_FEATURES = 'get_sing_box_features',
+    GET_XRAY_FEATURES = 'get_xray_features',
   }
 
-  export enum AvailableClashAPIMethods {
+  export enum AvailableXrayAPIMethods {
+    GET_TRAFFIC = 'get_traffic',
     GET_PROXIES = 'get_proxies',
-    GET_PROXY_LATENCY = 'get_proxy_latency',
-    GET_GROUP_LATENCY = 'get_group_latency',
     SET_GROUP_PROXY = 'set_group_proxy',
   }
+
+  export interface XrayTraffic {
+    uplink: number;
+    downlink: number;
+    outbound: Record<string, { uplink: number; downlink: number }>;
+  }
+
+  export interface XrayProxyGroup {
+    outbounds: string[];
+    selected: string;
+  }
+
+  export type XrayProxies = Record<string, XrayProxyGroup>;
 
   export interface Outbound {
     code: string;
     displayName: string;
-    latency: number;
     type: string;
     selected: boolean;
   }
@@ -95,8 +58,6 @@ export namespace Perekop {
     proxy_config_type: 'urltest';
     urltest_proxy_links: string[];
     urltest_fallback_links?: string[];
-    urltest_download_check?: 'default' | 'off' | 'custom';
-    urltest_download_url?: string;
   }
 
   export interface ConfigProxySelectorSection {
@@ -125,7 +86,6 @@ export namespace Perekop {
   export interface ConfigBlockSection {
     connection_type: 'block';
   }
-
   export interface ConfigExclusionSection {
     connection_type: 'exclusion';
   }
@@ -142,25 +102,22 @@ export namespace Perekop {
   export type ConfigSection = ConfigBaseSection & {
     '.name': string;
     '.type': 'settings' | 'section';
-    yacd_secret_key?: string;
   };
 
   export interface MethodSuccessResponse<T> {
     success: true;
     data: T;
   }
-
   export interface MethodFailureResponse {
     success: false;
     error: string;
   }
-
   export type MethodResponse<T> =
     | MethodSuccessResponse<T>
     | MethodFailureResponse;
 
   export interface DnsCheckResult {
-    dns_type: 'udp' | 'doh' | 'dot';
+    dns_type: 'udp' | 'doh';
     dns_server: string;
     dns_status: 0 | 1;
     dns_on_router: 0 | 1;
@@ -168,7 +125,6 @@ export namespace Perekop {
     bootstrap_dns_status: 0 | 1;
     dhcp_config_status: 0 | 1;
   }
-
   export interface NftRulesCheckResult {
     table_exist: 0 | 1;
     rules_mangle_exist: 0 | 1;
@@ -179,45 +135,33 @@ export namespace Perekop {
     rules_proxy_counters: 0 | 1;
     rules_other_mark_exist: 0 | 1;
   }
-
-  export interface SingBoxCheckResult {
-    sing_box_installed: 0 | 1;
-    sing_box_version_ok: 0 | 1;
-    sing_box_service_exist: 0 | 1;
-    sing_box_autostart_disabled: 0 | 1;
-    sing_box_process_running: 0 | 1;
-    sing_box_ports_listening: 0 | 1;
+  export interface XrayCheckResult {
+    xray_installed: 0 | 1;
+    xray_version_ok: 0 | 1;
+    xray_service_exist: 0 | 1;
+    xray_autostart_disabled: 0 | 1;
+    xray_process_running: 0 | 1;
+    xray_ports_listening: 0 | 1;
   }
-
   export interface FakeIPCheckResult {
     fakeip: boolean;
     IP: string;
   }
-
   export interface GetStatus {
     enabled: number;
     status: string;
   }
-
-  export interface GetSingBoxStatus {
+  export interface GetXrayStatus {
     running: number;
     enabled: number;
     status: string;
   }
-
   export interface GetSystemInfo {
     perekop_version: string;
     perekop_latest_version: string;
     luci_app_version: string;
-    sing_box_version: string;
+    xray_version: string;
     openwrt_version: string;
     device_model: string;
   }
-
-  export interface GetClashApiProxyLatency {
-    delay: number;
-    message?: string;
-  }
-
-  export type GetClashApiGroupLatency = Record<string, number>;
 }

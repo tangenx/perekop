@@ -56,9 +56,7 @@ export async function runDnsCheck() {
     state,
     items: [
       ...insertIf<IDiagnosticsChecksItem>(
-        data.dns_type === 'doh' ||
-          data.dns_type === 'dot' ||
-          !data.bootstrap_dns_status,
+        data.dns_type === 'doh' || !data.bootstrap_dns_status,
         [
           {
             state: data.bootstrap_dns_status ? 'success' : 'error',
