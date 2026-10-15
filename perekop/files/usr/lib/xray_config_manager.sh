@@ -26,7 +26,7 @@
 # which mirrors sing-box "route.final".
 #######################################
 xray_cm_init_config() {
-    echo '{"log":{},"dns":{},"fakeDns":{},"inbounds":[],"outbounds":[],"routing":{"domainStrategy":"AsIs","rules":[]},"balancers":[],"policy":{"system":{"statsInboundUplink":true,"statsInboundDownlink":true,"statsOutboundUplink":true,"statsOutboundDownlink":true}},"api":{}}'
+    echo '{"stats":{},"log":{},"dns":{},"fakeDns":{},"inbounds":[],"outbounds":[],"routing":{"domainStrategy":"AsIs","rules":[]},"balancers":[],"policy":{"system":{"statsInboundUplink":true,"statsInboundDownlink":true,"statsOutboundUplink":true,"statsOutboundDownlink":true}},"api":{}}'
 }
 
 #######################################
@@ -41,7 +41,7 @@ xray_cm_configure_log() {
     local config="$1"
     local level="$2"
 
-    jq --arg level "$level" '.log = {"loglevel": $level}' <<< "$config"
+     printf '%s\n' "$config" | jq --arg level "$level" '.log = {"loglevel": $level}'
 }
 
 #######################################
@@ -70,7 +70,9 @@ xray_cm_configure_dns() {
             "queryStrategy": $strategy,
             "hosts": $hosts,
             "servers": []
-        })' <<< "$config"
+        })' <<EOF
+$(printf '%s' "$config")
+EOF
 }
 
 #######################################
@@ -85,7 +87,7 @@ xray_cm_add_dns_server() {
     local config="$1"
     local server_json="$2"
 
-    jq --argjson server "$server_json" '.dns.servers += [$server]' <<< "$config"
+    printf '%s\n' "$config" | jq --argjson server "$server_json" '.dns.servers += [$server]'
 }
 
 #######################################
@@ -102,8 +104,8 @@ xray_cm_configure_fakedns() {
     local ip_pool="$2"
     local pool_size="$3"
 
-    jq --arg pool "$ip_pool" --argjson size "$pool_size" \
-        '.fakeDns = {"ipPool": $pool, "poolSize": $size}' <<< "$config"
+    printf '%s\n' "$config" | jq --arg pool "$ip_pool" --argjson size "$pool_size" \
+        '.fakeDns = {"ipPool": $pool, "poolSize": $size}'
 }
 
 #######################################
@@ -118,7 +120,7 @@ xray_cm_add_inbound() {
     local config="$1"
     local inbound_json="$2"
 
-    jq --argjson inbound "$inbound_json" '.inbounds += [$inbound]' <<< "$config"
+    printf '%s\n' "$config" | jq --argjson inbound "$inbound_json" '.inbounds += [$inbound]'
 }
 
 #######################################
@@ -133,7 +135,7 @@ xray_cm_add_outbound() {
     local config="$1"
     local outbound_json="$2"
 
-    jq --argjson outbound "$outbound_json" '.outbounds += [$outbound]' <<< "$config"
+    printf '%s\n' "$config" | jq --argjson outbound "$outbound_json" '.outbounds += [$outbound]'
 }
 
 #######################################
@@ -155,15 +157,15 @@ xray_cm_build_freedom_outbound() {
     local json='{"protocol":"freedom","tag":"'"$tag"'","settings":{}}'
 
     if [ -n "$redirect" ]; then
-        json=$(jq --arg redirect "$redirect" '.settings.redirect = $redirect' <<< "$json")
+        json=$(printf '%s\n' "$json" | jq --arg redirect "$redirect" '.settings.redirect = $redirect')
     fi
 
     if [ -n "$domain_strategy" ] || [ -n "$interface" ]; then
-        json=$(jq --arg ds "$domain_strategy" --arg iface "$interface" '
+        json=$(printf '%s\n' "$json" | jq --arg ds "$domain_strategy" --arg iface "$interface" '
             .streamSettings = ((.streamSettings // {}) + {"sockopt": {}}) |
             (if $ds != "" then .streamSettings.sockopt.domainStrategy = $ds else . end) |
             (if $iface != "" then .streamSettings.sockopt.interface = $iface else . end)
-        ' <<< "$json")
+        ')
     fi
 
     echo "$json"
@@ -219,10 +221,10 @@ xray_cm_build_socks_outbound() {
     local server='{"address":"'"$host"'","port":'"$port"',"users":[]}'
 
     if [ -n "$username" ]; then
-        server=$(jq --arg user "$username" --arg pass "$password" \
-            '.users = [{"user": $user, "pass": $pass}]' <<< "$server")
+        server=$(printf '%s\n' "$server" | jq --arg user "$username" --arg pass "$password" \
+            '.users = [{"user": $user, "pass": $pass}]')
     else
-        server=$(jq 'del(.users)' <<< "$server")
+        server=$(printf '%s\n' "$server" | jq 'del(.users)')
     fi
 
     echo '{"protocol":"socks","tag":"'"$tag"'","settings":{"servers":['"$server"']}}'
@@ -341,11 +343,11 @@ xray_cm_build_hysteria2_outbound() {
         }')
 
     if [ -n "$obfs" ] && [ "$obfs" = "salamander" ] && [ -n "$obfs_password" ]; then
-        json=$(jq --arg password "$obfs_password" '
+        json=$(printf '%s\n' "$json" | jq --arg password "$obfs_password" '
             .streamSettings.udpmasks = [{
                 "type": "salamander",
                 "settings": {"password": $password}
-            }]' <<< "$json")
+            }]')
     fi
 
     echo "$json"
@@ -375,18 +377,18 @@ xray_cm_set_tls_for_outbound() {
 
     local tls='{}'
 
-    [ -n "$server_name" ] && tls=$(jq --arg sni "$server_name" '.serverName = $sni' <<< "$tls")
-    [ "$insecure" = "true" ] && tls=$(jq '.allowInsecure = true' <<< "$tls")
+    [ -n "$server_name" ] && tls=$(printf '%s\n' "$tls" | jq --arg sni "$server_name" '.serverName = $sni')
+    [ "$insecure" = "true" ] && tls=$(printf '%s\n' "$tls" | jq '.allowInsecure = true')
     if [ -n "$alpn" ] && [ "$alpn" != "[]" ]; then
-        tls=$(jq --argjson alpn "$alpn" '.alpn = $alpn' <<< "$tls")
+        tls=$(printf '%s\n' "$tls" | jq --argjson alpn "$alpn" '.alpn = $alpn')
     fi
-    [ -n "$fingerprint" ] && tls=$(jq --arg fp "$fingerprint" '.fingerprint = $fp' <<< "$tls")
-    [ -n "$ech_config" ] && tls=$(jq --arg ech "$ech_config" '.echConfigList = $ech' <<< "$tls")
+    [ -n "$fingerprint" ] && tls=$(printf '%s\n' "$tls" | jq --arg fp "$fingerprint" '.fingerprint = $fp')
+    [ -n "$ech_config" ] && tls=$(printf '%s\n' "$tls" | jq --arg ech "$ech_config" '.echConfigList = $ech')
 
-    jq --arg tag "$tag" --argjson tls "$tls" '
+    printf '%s\n' "$config" | jq --arg tag "$tag" --argjson tls "$tls" '
         (.outbounds[] | select(.tag == $tag) | .streamSettings) |=
             ((. // {}) + {"network": "raw", "security": "tls", "tlsSettings": $tls})
-    ' <<< "$config"
+    '
 }
 
 #######################################
@@ -411,15 +413,15 @@ xray_cm_set_reality_for_outbound() {
 
     local reality='{}'
 
-    [ -n "$server_name" ] && reality=$(jq --arg sni "$server_name" '.serverName = $sni' <<< "$reality")
-    [ -n "$fingerprint" ] && reality=$(jq --arg fp "$fingerprint" '.fingerprint = $fp' <<< "$reality")
-    [ -n "$public_key" ] && reality=$(jq --arg pk "$public_key" '.publicKey = $pk' <<< "$reality")
-    [ -n "$short_id" ] && reality=$(jq --arg sid "$short_id" '.shortId = $sid' <<< "$reality")
+    [ -n "$server_name" ] && reality=$(printf '%s\n' "$reality" | jq --arg sni "$server_name" '.serverName = $sni')
+    [ -n "$fingerprint" ] && reality=$(printf '%s\n' "$reality" | jq --arg fp "$fingerprint" '.fingerprint = $fp')
+    [ -n "$public_key" ] && reality=$(printf '%s\n' "$reality" | jq --arg pk "$public_key" '.publicKey = $pk')
+    [ -n "$short_id" ] && reality=$(printf '%s\n' "$reality" | jq --arg sid "$short_id" '.shortId = $sid')
 
-    jq --arg tag "$tag" --argjson reality "$reality" '
+    printf '%s\n' "$config" | jq --arg tag "$tag" --argjson reality "$reality" '
         (.outbounds[] | select(.tag == $tag) | .streamSettings) |=
             ((. // {}) + {"network": "raw", "security": "reality", "realitySettings": $reality})
-    ' <<< "$config"
+    '
 }
 
 #######################################
@@ -441,11 +443,11 @@ xray_cm_set_transport_for_outbound() {
     local settings_key="$4"
     local settings_json="$5"
 
-    jq --arg tag "$tag" --arg network "$network" --arg key "$settings_key" \
+    printf '%s\n' "$config" | jq --arg tag "$tag" --arg network "$network" --arg key "$settings_key" \
         --argjson settings "$settings_json" '
         (.outbounds[] | select(.tag == $tag) | .streamSettings) |=
             ((. // {}) + {"network": $network} + {($key): $settings})
-    ' <<< "$config"
+    '
 }
 
 #######################################
@@ -460,7 +462,7 @@ xray_cm_add_route_rule() {
     local config="$1"
     local rule_json="$2"
 
-    jq --argjson rule "$rule_json" '.routing.rules += [$rule]' <<< "$config"
+    printf '%s\n' "$config" | jq --argjson rule "$rule_json" '.routing.rules += [$rule]'
 }
 
 #######################################
@@ -481,13 +483,13 @@ xray_cm_add_balancer() {
     local strategy="$4"
     local fallback_tag="$5"
 
-    jq --arg tag "$tag" --arg prefix "$selector_prefix" --arg strategy "$strategy" \
+    printf '%s\n' "$config" | jq --arg tag "$tag" --arg prefix "$selector_prefix" --arg strategy "$strategy" \
         --arg fallback "$fallback_tag" '
         .routing.balancers = ((.routing.balancers // []) + [
             {"tag": $tag, "selector": [$prefix], "strategy": {"type": $strategy}} +
             (if $fallback != "" then {"fallbackTag": $fallback} else {} end)
         ])
-    ' <<< "$config"
+    '
 }
 
 #######################################
@@ -506,7 +508,7 @@ xray_cm_configure_burst_observatory() {
     local destination="$3"
     local interval="$4"
 
-    jq --arg prefix "$subject_prefix" --arg destination "$destination" \
+    printf '%s\n' "$config" | jq --arg prefix "$subject_prefix" --arg destination "$destination" \
         --arg interval "$interval" '
         .burstObservatory = {
             "subjectSelector": [$prefix],
@@ -519,7 +521,7 @@ xray_cm_configure_burst_observatory() {
                 "httpMethod": "HEAD"
             }
         }
-    ' <<< "$config"
+    '
 }
 
 #######################################
@@ -536,13 +538,13 @@ xray_cm_configure_api() {
     local tag="$2"
     local listen="$3"
 
-    jq --arg tag "$tag" --arg listen "$listen" '
+    printf '%s\n' "$config" | jq --arg tag "$tag" --arg listen "$listen" '
         .api = {
             "tag": $tag,
             "listen": $listen,
             "services": ["HandlerService", "StatsService", "RoutingService"]
         }
-    ' <<< "$config"
+    '
 }
 
 #######################################
@@ -555,7 +557,7 @@ xray_cm_save_config_to_file() {
     local config="$1"
     local file_path="$2"
 
-    jq . > "$file_path" <<< "$config"
+    printf '%s\n' "$config" | jq . > "$file_path"
 }
 
 #######################################
@@ -565,9 +567,14 @@ xray_cm_save_config_to_file() {
 #######################################
 xray_cm_check_config() {
     local config_path="$1"
+    local check_output
 
-    if ! xray run -test -c "$config_path" > /dev/null 2>&1; then
+    # Xray 25.1.30 exits with code 23 even for a valid config,
+    # so success is detected by the output marker, not the exit code
+    check_output=$(xray run -test -c "$config_path" 2>&1)
+    if ! printf '%s\n' "$check_output" | grep -q "Configuration OK."; then
         log "Xray configuration $config_path is invalid. Aborted." "fatal"
+        log "$check_output" "error"
         exit 1
     fi
 }

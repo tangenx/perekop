@@ -1,4 +1,4 @@
-FROM openwrt/sdk:x86_64-v24.10.6
+FROM openwrt/sdk:x86_64-v24.10.4
 
 ARG PEREKOP_VERSION
 

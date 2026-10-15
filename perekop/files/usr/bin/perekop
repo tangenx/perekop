@@ -555,7 +555,10 @@ mark_lists_initialized() {
 lists_state_hash() {
     (
         cd "$TMP_XRAY_FOLDER" 2> /dev/null || return 1
-        find . -type f ! -name .initialized -print0 | sort -z | xargs -0 md5sum 2> /dev/null | md5sum | cut -d' ' -f1
+        # The state file itself must not be part of the hash, or the hash
+        # never stabilizes and the core restarts on every list update
+        find . -type f ! -name .initialized ! -name "$(basename "$GEOFILES_STATE")" -print0 |
+            sort -z | xargs -0 md5sum 2> /dev/null | md5sum | cut -d' ' -f1
     )
 }
 
@@ -1016,23 +1019,32 @@ xray_configure_inbounds() {
         '{
             "listen": $listen,
             "port": $port,
-            "protocol": "tunnel",
-            "settings": {"followRedirect": true, "allowedNetwork": "tcp,udp"},
+            "protocol": "dokodemo-door",
+            "settings": {"followRedirect": true, "network": "tcp,udp"},
             "sniffing": {"enabled": true, "destOverride": ["fakedns"]},
             "streamSettings": {"sockopt": {"tproxy": "tproxy"}},
             "tag": $tag
         }')")
 
-    # DNS inbound: dnsmasq forwards all queries here
+    # DNS inbound: dnsmasq forwards all queries here. dokodemo-door needs a
+    # destination even though the dns-out route rule ignores it: use the
+    # configured upstream so a broken route still resolves instead of looping
+    local dns_server dns_port
+    config_get dns_server "settings" "dns_server" "77.88.8.8"
+    dns_port=$(url_get_port "$dns_server")
+    [ -z "$dns_port" ] && dns_port=53
+
     config=$(xray_cm_add_inbound "$config" "$(jq -n \
         --arg tag "$XRAY_DNS_INBOUND_TAG" \
         --arg listen "$XRAY_DNS_INBOUND_ADDRESS" \
         --argjson port "$XRAY_DNS_INBOUND_PORT" \
+        --arg address "$(url_get_host "$dns_server")" \
+        --argjson dns_port "$dns_port" \
         '{
             "listen": $listen,
             "port": $port,
-            "protocol": "tunnel",
-            "settings": {"allowedNetwork": "tcp,udp"},
+            "protocol": "dokodemo-door",
+            "settings": {"address": $address, "port": $dns_port, "network": "tcp,udp"},
             "tag": $tag
         }')")
 }
@@ -1058,7 +1070,8 @@ xray_configure_fakeip_test_outbound() {
 
     # Resolve directly via the bootstrap server, bypassing dnsmasq and the
     # core itself: the Freedom redirect must never dial a fake IP
-    real_ip=$(nslookup "$FAKEIP_TEST_DOMAIN" "$bootstrap_dns_server" 2> /dev/null | awk '/^Address/ && !/127\.0\.0\.1/ {print $NF; exit}')
+    real_ip=$(dig +short +time=2 +tries=2 "@$bootstrap_dns_server" "$FAKEIP_TEST_DOMAIN" 2> /dev/null |
+        grep -E "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$" | head -n 1)
 
     if [ -n "$real_ip" ] && is_ipv4 "$real_ip"; then
         log "The FakeIP check domain resolves to $real_ip" "debug"
@@ -1491,13 +1504,14 @@ xray_configure_dns() {
     config=$(xray_cm_configure_fakedns "$config" "$XRAY_FAKEIP_INET4_RANGE" "$XRAY_FAKEIP_POOL_SIZE")
 }
 
+_all_sections_with_lists_cb() {
+    local section="$1"
+
+    section_has_enabled_lists "$section" && echo "$section"
+}
+
 get_all_sections_with_domain_lists() {
-    local section
-    for section in $(uci show perekop 2>/dev/null | grep "^perekop\..*\.type='section'" | cut -d. -f2 | cut -d= -f1 | cut -d"'" -f1); do
-        if section_has_enabled_lists "$section"; then
-            echo "$section"
-        fi
-    done
+    config_foreach _all_sections_with_lists_cb "section"
 }
 
 xray_configure_route() {
@@ -1523,11 +1537,12 @@ xray_configure_route() {
 
     # FakeIP check service: dnsmasq pins the domain to a fixed fake IP, the
     # redirect outbound dials the real service on port 8443
-    if jq -e --arg tag "$XRAY_FAKEIP_TEST_OUTBOUND_TAG" \
-        '.outbounds[] | select(.tag == $tag)' > /dev/null 2>&1 <<< "$config"; then
+    if printf '%s\n' "$config" | jq -e --arg tag "$XRAY_FAKEIP_TEST_OUTBOUND_TAG" \
+        '.outbounds[] | select(.tag == $tag)' > /dev/null 2>&1; then
         config=$(xray_cm_add_route_rule "$config" "$(jq -n \
             --arg tag "$XRAY_TPROXY_INBOUND_TAG" --arg outbound "$XRAY_FAKEIP_TEST_OUTBOUND_TAG" \
-            '{"inboundTag": [$tag], "ip": ["198.18.255.254/32"], "outboundTag": $outbound}')")
+            --arg domain "full:$FAKEIP_TEST_DOMAIN" \
+            '{"inboundTag": [$tag], "domain": [$domain], "outboundTag": $outbound}')")
     fi
 
     # The check domain reports the exit IP of the first proxy section
@@ -1684,6 +1699,9 @@ xray_save_config() {
     local xray_config_path temp_file_path current_config_hash temp_config_hash
     config_get xray_config_path "settings" "config_path" "/etc/xray/config.json"
     temp_file_path="$(mktemp)"
+    # Xray sniffs the config format by file extension, keep the .json suffix
+    rm -f "$temp_file_path"
+    temp_file_path="$temp_file_path.json"
 
     log "Save Xray temporary config to $temp_file_path" "debug"
     xray_cm_save_config_to_file "$config" "$temp_file_path"
@@ -1734,7 +1752,7 @@ check_proxy() {
 
     nolog "Checking xray configuration..."
 
-    if ! xray run -test -c "$xray_config_path" > /dev/null 2>&1; then
+    if ! xray run -test -c "$xray_config_path" 2>&1 | grep -q "Configuration OK."; then
         nolog "Invalid configuration"
         return 1
     fi
@@ -2292,10 +2310,9 @@ xray_api() {
         xray api statsquery -s "$XRAY_API_URL" 2> /dev/null | jq '{
             uplink: ([.stat[]? | select(.name == "inbound>>>tproxy-in>>>traffic>>>uplink") | .value] | add // 0),
             downlink: ([.stat[]? | select(.name == "inbound>>>tproxy-in>>>traffic>>>downlink") | .value] | add // 0),
-            outbound: (.stat // []) | map(select(.name | startswith("outbound>>>"))) |
-                map({key: (.name | capture("outbound>>>(?<tag>[^>]+)>>>traffic>>>(?<dir>\\\\w+)") | .tag),
-                     value: {direction: (.name | capture("outbound>>>(?<tag>[^>]+)>>>traffic>>>(?<dir>\\\\w+)") | .dir), count: .value}}) |
-                group_by(.key) | map({key: .[0].key, value: (map({(.value.direction): .value.count}) | add)}) | {(.key): .value}) | add
+            outbound: (reduce (.stat // [])[] as $s ({};
+                ($s.name | select(startswith("outbound>>>")) | split(">>>")) as $p |
+                . + {($p[1]): ((.[$p[1]] // {}) + {($p[3]): ($s.value // 0)})}))
         }'
         ;;
 
@@ -2317,18 +2334,16 @@ xray_api() {
 xray_api_get_proxies() {
     # Groups with the current selection and their outbounds, based on UCI and
     # the live balancer state
-    local section balancer_info override selected
-    local result="{}"
-
-    for section in $(uci show perekop 2>/dev/null | grep "^perekop\..*\.type='section'" | cut -d. -f2 | cut -d= -f1 | cut -d"'" -f1); do
+    _xray_api_proxies_cb() {
+        local section="$1"
         local connection_type proxy_config_type
         config_get connection_type "$section" "connection_type"
         config_get proxy_config_type "$section" "proxy_config_type"
 
-        [ "$connection_type" != "proxy" ] && continue
+        [ "$connection_type" != "proxy" ] && return 0
         case "$proxy_config_type" in
         selector | urltest) ;;
-        *) continue ;;
+        *) return 0 ;;
         esac
 
         local links_var links outbounds_json="[]" i=1 outbound_tag
@@ -2346,17 +2361,21 @@ xray_api_get_proxies() {
         done
 
         # The override target from the live balancer, "" when automatic
+        local override selected
         override=$(xray api bi -json -s "$XRAY_API_URL" "$(get_outbound_tag_by_section "$section")" 2> /dev/null |
             jq -r '.balancer.override.target // ""')
         selected="$(uci -q get "perekop.$section.selector_selected")"
         [ -z "$selected" ] && selected="$override"
 
-        result=$(jq -n --argjson cur "$result" --arg section "$section" \
+        XRAY_API_PROXIES_RESULT=$(jq -n --argjson cur "$XRAY_API_PROXIES_RESULT" --arg section "$section" \
             --argjson outbounds "$outbounds_json" --arg selected "$selected" \
             '$cur + {($section): {"outbounds": $outbounds, "selected": $selected}}')
-    done
+    }
 
-    echo "$result" | jq .
+    XRAY_API_PROXIES_RESULT="{}"
+    config_foreach _xray_api_proxies_cb "section"
+
+    echo "$XRAY_API_PROXIES_RESULT" | jq .
 }
 
 xray_api_set_group_proxy() {

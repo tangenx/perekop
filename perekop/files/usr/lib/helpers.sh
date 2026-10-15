@@ -1,34 +1,42 @@
-# Check if string is valid IPv4
-is_ipv4() {
-    local ip="$1"
-    local regex="^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"
-    [[ "$ip" =~ $regex ]]
-}
+ # Check if string is valid IPv4
+ is_ipv4() {
+     local ip="$1"
 
-# Check if string is valid IPv4 with CIDR mask
-is_ipv4_cidr() {
-    local ip="$1"
-    local regex="^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}(\/(3[0-2]|2[0-9]|1[0-9]|[0-9]))$"
-    [[ "$ip" =~ $regex ]]
-}
+     printf '%s\n' "$ip" | awk -F. 'NF != 4 { exit 1 } { for (i = 1; i <= 4; i++) if ($i !~ /^[0-9]+$/ || length($i) > 3 || $i + 0 > 255) exit 1 }'
+ }
 
-is_ipv4_ip_or_ipv4_cidr() {
-    is_ipv4 "$1" || is_ipv4_cidr "$1"
-}
+ # Check if string is valid IPv4 with CIDR mask
+ is_ipv4_cidr() {
+     local ip="$1"
+     local address="${ip%/*}"
+     local mask="${ip#*/}"
 
-is_domain() {
-    local str="$1"
-    local regex='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$'
+     [ "$address" != "$ip" ] || return 1
+     is_ipv4 "$address" || return 1
+     case "$mask" in
+     ''|*[!0-9]*) return 1 ;;
+     esac
+     [ "$mask" -le 32 ]
+ }
 
-    [[ "$str" =~ $regex ]]
-}
+ is_ipv4_ip_or_ipv4_cidr() {
+     is_ipv4 "$1" || is_ipv4_cidr "$1"
+ }
 
-is_domain_suffix() {
-    local str="$1"
-    local normalized="${str#.}"
+ is_domain() {
+     local str="$1"
+     local label='[a-z0-9]([a-z0-9-]*[a-z0-9])?'
 
-    is_domain "$normalized"
-}
+     printf '%s\n' "$str" | grep -Eiq "^${label}(\\.${label})*$"
+ }
+
+ is_domain_suffix() {
+     local str="$1"
+     local normalized="${str#.}"
+
+     is_domain "$normalized"
+ }
+
 
 # Checks if the given string is a valid base64-encoded sequence
 is_base64() {
@@ -41,12 +49,11 @@ is_base64() {
 }
 
 # Checks if the given string looks like a Shadowsocks userinfo
-is_shadowsocks_userinfo_format() {
-    local str="$1"
-    local regex='^[^:]+:[^:]+(:[^:]+)?$'
+ is_shadowsocks_userinfo_format() {
+     local str="$1"
 
-    [[ "$str" =~ $regex ]]
-}
+     printf '%s\n' "$str" | grep -Eq '^[^:][^:]*:[^:][^:]*(:[^:]*)?$'
+ }
 
 # Compares the current package version with the required minimum
 is_min_package_version() {
@@ -61,15 +68,10 @@ is_min_package_version() {
 
 # Checks if the given file exists
 file_exists() {
-    local filepath="$1"
+     local filepath="$1"
 
-    if [[ -f "$filepath" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
+     [ -f "$filepath" ]
+ }
 # Checks if a service script exists in /etc/init.d
 service_exists() {
     local service="$1"
@@ -176,15 +178,17 @@ url_get_host() {
 
 # Extracts the port number from a URL
 url_get_port() {
-    local url="$1"
+     local url="$1"
 
-    url="${url#*://}"
-    url="${url#*@}"
-    url="${url%%[/?#]*}"
+     url="${url#*://}"
+     url="${url#*@}"
+     url="${url%%[/?#]*}"
 
-    [[ "$url" == *:* ]] && echo "${url#*:}" || echo ""
-}
-
+     case "$url" in
+     *:*) echo "${url#*:}" ;;
+     *) echo "" ;;
+     esac
+ }
 # Extracts the path from a URL (without query or fragment; returns "/" if empty)
 url_get_path() {
     local url="$1"
@@ -299,18 +303,18 @@ download_to_file() {
     done
 }
 
-# Converts Windows-style line endings (CRLF) to Unix-style (LF)
 convert_crlf_to_lf() {
-    local filepath="$1"
+     local filepath="$1"
+     local carriage_return
+     carriage_return=$(printf '\r')
 
-    if grep -q $'\r' "$filepath"; then
-        log "File '$filepath' contains CRLF line endings. Converting to LF..." "debug"
-        local tmpfile
-        tmpfile=$(mktemp)
-        tr -d '\r' < "$filepath" > "$tmpfile" && mv "$tmpfile" "$filepath" || rm -f "$tmpfile"
-    fi
-}
-
+     if grep -q "$carriage_return" "$filepath"; then
+         log "File '$filepath' contains CRLF line endings. Converting to LF..." "debug"
+         local tmpfile
+         tmpfile=$(mktemp)
+         tr -d '\r' < "$filepath" > "$tmpfile" && mv "$tmpfile" "$filepath" || rm -f "$tmpfile"
+     fi
+ }
 #######################################
 # Parses a whitespace-separated string, validates items as either domains
 # or IPv4 addresses/subnets, and returns a comma-separated string of valid items.

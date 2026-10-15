@@ -84,7 +84,7 @@ xray_cf_add_fakedns_server() {
         '{"address": "fakedns", "domains": $domains, "skipFallback": true}')
 
     # fakedns comes first: its "domains" match takes priority over real servers
-    jq --argjson server "$server" '.dns.servers = [$server] + .dns.servers' <<< "$config"
+    printf '%s\n' "$config" | jq --argjson server "$server" '.dns.servers = [$server] + .dns.servers'
 }
 
 #######################################
@@ -394,7 +394,7 @@ xray_cf_add_json_outbound() {
 
     # The tag must match the perekop tag layout, the rest is passed as-is
     local outbound
-    outbound=$(jq --arg tag "$tag" '.tag = $tag' <<< "$json_outbound")
+    outbound=$(printf '%s\n' "$json_outbound" | jq --arg tag "$tag" '.tag = $tag')
 
     config=$(xray_cm_add_outbound "$config" "$outbound")
 
