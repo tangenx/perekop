@@ -71,6 +71,11 @@ check_requirements() {
         log "Package 'coreutils-base64' version ($coreutils_base64_version) is lower than the required minimum ($COREUTILS_BASE64_REQUIRED_VERSION). This may cause issues when decoding base64 streams with missing padding, as automatic padding support is not available in older versions." "warn"
     fi
 
+    if service_exists "podkop"; then
+        log "Podkop is installed. Perekop is a Podkop fork, they cannot run on the same router. Remove it: opkg remove podkop luci-app-podkop. Aborted." "error"
+        exit 1
+    fi
+
     if grep -qE 'doh_backup_noresolv|doh_backup_server|doh_server' /etc/config/dhcp; then
         log "Detected https-dns-proxy in DHCP config. Edit /etc/config/dhcp" "error"
     fi
@@ -2760,6 +2765,10 @@ global_check() {
     if [ -f "/etc/init.d/zapret" ]; then
         print_global "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         print_global "⚠️ Zapret detected"
+    fi
+    if service_exists "podkop"; then
+        print_global "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_global "⚠️ Podkop detected: remove it (opkg remove podkop luci-app-podkop)"
     fi
 
     print_global "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
