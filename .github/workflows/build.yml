@@ -2,7 +2,7 @@ name: Build packages
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 permissions:
   contents: write
@@ -117,3 +117,4 @@ jobs:
           prerelease: false
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
+          body_file: ./RELEASE_NOTES.md
