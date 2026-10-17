@@ -34,7 +34,7 @@ function createSectionContent(section, xrayFeatures = []) {
     form.TextValue,
     "proxy_string",
     _("Proxy Configuration URL"),
-    _("vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links")
+    _("vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links"),
   );
   o.depends("proxy_config_type", "url");
   o.rows = 5;
@@ -86,7 +86,7 @@ function createSectionContent(section, xrayFeatures = []) {
     form.DynamicList,
     "selector_proxy_links",
     _("Selector Proxy Links"),
-    _("vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links")
+    _("vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links"),
   );
   o.depends("proxy_config_type", "selector");
   o.rmempty = false;
@@ -109,7 +109,7 @@ function createSectionContent(section, xrayFeatures = []) {
     form.DynamicList,
     "urltest_proxy_links",
     _("URLTest Proxy Links"),
-    _("vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links")
+    _("vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links"),
   );
   o.depends("proxy_config_type", "urltest");
   o.rmempty = false;
@@ -128,12 +128,11 @@ function createSectionContent(section, xrayFeatures = []) {
     return validation.message;
   };
 
-
   o = section.option(
     form.ListValue,
     "urltest_check_interval",
     _("URLTest Check Interval"),
-    _("The interval between connectivity tests")
+    _("The interval between connectivity tests"),
   );
   o.value("30s", _("Every 30 seconds"));
   o.value("1m", _("Every 1 minute"));
@@ -142,17 +141,25 @@ function createSectionContent(section, xrayFeatures = []) {
   o.default = "3m";
   o.depends("proxy_config_type", "urltest");
 
-
   o = section.option(
     form.Value,
     "urltest_testing_url",
     _("URLTest Testing URL"),
-    _("The URL used to test server connectivity")
+    _("The URL used to test server connectivity"),
   );
-  o.value("https://www.gstatic.com/generate_204", "https://www.gstatic.com/generate_204 (Google)");
-  o.value("https://cp.cloudflare.com/generate_204", "https://cp.cloudflare.com/generate_204 (Cloudflare)");
+  o.value(
+    "https://www.gstatic.com/generate_204",
+    "https://www.gstatic.com/generate_204 (Google)",
+  );
+  o.value(
+    "https://cp.cloudflare.com/generate_204",
+    "https://cp.cloudflare.com/generate_204 (Cloudflare)",
+  );
   o.value("https://captive.apple.com", "https://captive.apple.com (Apple)");
-  o.value("https://connectivity-check.ubuntu.com", "https://connectivity-check.ubuntu.com (Ubuntu)")
+  o.value(
+    "https://connectivity-check.ubuntu.com",
+    "https://connectivity-check.ubuntu.com (Ubuntu)",
+  );
   o.default = "https://www.gstatic.com/generate_204";
   o.rmempty = false;
   o.depends("proxy_config_type", "urltest");
@@ -170,8 +177,6 @@ function createSectionContent(section, xrayFeatures = []) {
 
     return validation.message;
   };
-
-
 
   o = section.option(
     widgets.DeviceSelect,
@@ -363,13 +368,18 @@ function createSectionContent(section, xrayFeatures = []) {
   o.depends("connection_type", "block");
   o.depends("connection_type", "exclusion");
   o.placeholder = "Service list";
-  Object.entries(main.DOMAIN_LIST_OPTIONS).forEach(([key, label]) => o.value(key, _(label)));
+  Object.entries(main.DOMAIN_LIST_OPTIONS).forEach(([key, label]) =>
+    o.value(key, _(label)),
+  );
   o.rmempty = true;
   o.onchange = function (ev, section_id, value) {
     if (isProcessing) return;
     isProcessing = true;
-    try { lastValues = Array.isArray(value) ? value : [value]; }
-    finally { isProcessing = false; }
+    try {
+      lastValues = Array.isArray(value) ? value : [value];
+    } finally {
+      isProcessing = false;
+    }
   };
   o = section.option(
     form.ListValue,
@@ -382,6 +392,9 @@ function createSectionContent(section, xrayFeatures = []) {
   o.value("text", _("Text List"));
   o.default = "disabled";
   o.rmempty = false;
+  o.depends("connection_type", "proxy");
+  o.depends("connection_type", "block");
+  o.depends("connection_type", "exclusion");
 
   o = section.option(
     form.DynamicList,
@@ -390,7 +403,12 @@ function createSectionContent(section, xrayFeatures = []) {
     _("Enter subnets in CIDR notation or single IP addresses"),
   );
   o.placeholder = "IP or subnet";
-  o.depends("user_subnet_list_type", "dynamic");
+  o.depends({ user_subnet_list_type: "dynamic", connection_type: "proxy" });
+  o.depends({ user_subnet_list_type: "dynamic", connection_type: "block" });
+  o.depends({
+    user_subnet_list_type: "dynamic",
+    connection_type: "exclusion",
+  });
   o.rmempty = false;
   o.validate = function (section_id, value) {
     if (!value || value.length === 0) return true;
@@ -422,10 +440,12 @@ function createSectionContent(section, xrayFeatures = []) {
     ),
   );
   o.placeholder = "Domains list";
-  o.depends("connection_type", "proxy");
-  o.depends("connection_type", "block");
-  o.depends("connection_type", "exclusion");
-  o.depends("user_domain_list_type", "dynamic");
+  o.depends({ user_domain_list_type: "dynamic", connection_type: "proxy" });
+  o.depends({ user_domain_list_type: "dynamic", connection_type: "block" });
+  o.depends({
+    user_domain_list_type: "dynamic",
+    connection_type: "exclusion",
+  });
   o.rmempty = false;
   o.validate = function (section_id, value) {
     // Optional
@@ -452,12 +472,14 @@ function createSectionContent(section, xrayFeatures = []) {
   );
   o.placeholder =
     "example.com, sub.example.com\n// Social networks\ndomain.com test.com // personal domains";
-  o.depends("user_domain_list_type", "text");
+  o.depends({ user_domain_list_type: "text", connection_type: "proxy" });
+  o.depends({ user_domain_list_type: "text", connection_type: "block" });
+  o.depends({
+    user_domain_list_type: "text",
+    connection_type: "exclusion",
+  });
   o.rows = 8;
   o.rmempty = false;
-  o.depends("connection_type", "proxy");
-  o.depends("connection_type", "block");
-  o.depends("connection_type", "exclusion");
   o.validate = function (section_id, value) {
     // Optional
     if (!value || value.length === 0) {
@@ -498,7 +520,12 @@ function createSectionContent(section, xrayFeatures = []) {
   );
   o.placeholder =
     "103.21.244.0/22\n// Google DNS\n8.8.8.8\n1.1.1.1/32, 9.9.9.9 // Cloudflare and Quad9";
-  o.depends("user_subnet_list_type", "text");
+  o.depends({ user_subnet_list_type: "text", connection_type: "proxy" });
+  o.depends({ user_subnet_list_type: "text", connection_type: "block" });
+  o.depends({
+    user_subnet_list_type: "text",
+    connection_type: "exclusion",
+  });
   o.rows = 10;
   o.rmempty = false;
   o.validate = function (section_id, value) {
@@ -527,9 +554,6 @@ function createSectionContent(section, xrayFeatures = []) {
 
     return true;
   };
-  o.depends("connection_type", "proxy");
-  o.depends("connection_type", "block");
-  o.depends("connection_type", "exclusion");
 
   o = section.option(
     form.DynamicList,
@@ -671,7 +695,6 @@ function createSectionContent(section, xrayFeatures = []) {
   );
   o.rmempty = false;
   o.depends("mixed_proxy_enabled", "1");
-
 }
 
 const EntryPoint = {
