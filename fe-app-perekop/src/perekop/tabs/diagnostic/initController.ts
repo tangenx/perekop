@@ -222,17 +222,25 @@ async function runChecks() {
     diagnosticsRunAction: { loading: true },
     diagnosticsChecks: loadingDiagnosticsChecksStore.diagnosticsChecks,
   });
-  try {
-    await runDnsCheck();
-    await runXrayCheck();
-    await runNftCheck();
-    await runSectionsCheck();
-    await runFakeIPCheck();
-  } catch (error) {
-    logger.error('[DIAGNOSTIC]', 'runChecks - e', error);
-  } finally {
-    store.set({ diagnosticsRunAction: { loading: false } });
+
+  // Every check is isolated: a failed check must not freeze the
+  // remaining ones in the loading state
+  const checks = [
+    runDnsCheck,
+    runXrayCheck,
+    runNftCheck,
+    runSectionsCheck,
+    runFakeIPCheck,
+  ];
+  for (const check of checks) {
+    try {
+      await check();
+    } catch (error) {
+      logger.error('[DIAGNOSTIC]', 'runChecks - e', error);
+    }
   }
+
+  store.set({ diagnosticsRunAction: { loading: false } });
 }
 function onPageUnmount() {
   store.unsubscribe(onStoreUpdate);

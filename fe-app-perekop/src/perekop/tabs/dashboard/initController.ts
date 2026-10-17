@@ -1,10 +1,13 @@
+import { Perekop } from '../../types';
 import { onMount, preserveScrollForPage } from '../../../helpers';
 import { prettyBytes } from '../../../helpers/prettyBytes';
 import { CustomPerekopMethods, PerekopShellMethods } from '../../methods';
 import { logger, store, StoreType } from '../../services';
 import { renderSections, renderWidget } from './partials';
 import { fetchServicesInfo } from '../../fetchers';
+
 let trafficTimer: number | undefined;
+let systemInfoTimer: number | undefined;
 let dashboardMounted = false;
 let previousTraffic:
   | { uplink: number; downlink: number; at: number }
@@ -71,11 +74,37 @@ async function pollTraffic() {
   if (!dashboardMounted) return;
   try {
     const success = await fetchTraffic();
-    if (!success || !dashboardMounted) return;
-    trafficTimer = setTimeout(pollTraffic, 1500);
+    if (!dashboardMounted) return;
+    // Keep polling on failures too: the core may just be restarting,
+    // freezing the widgets forever is worse than a retry
+    trafficTimer = setTimeout(pollTraffic, success ? 1500 : 5000);
   } catch (error) {
     logger.error('[DASHBOARD]', 'pollTraffic: failed to fetch', error);
+    if (dashboardMounted) trafficTimer = setTimeout(pollTraffic, 5000);
   }
+}
+
+async function fetchSystemInfo() {
+  const result = await PerekopShellMethods.getXrayRuntimeInfo();
+  store.set({
+    systemInfoWidget: result.success
+      ? { loading: false, failed: false, data: result.data }
+      : {
+          loading: false,
+          failed: true,
+          data: { memory: 0, uptime: 0, connections: 0 },
+        },
+  });
+}
+
+async function pollSystemInfo() {
+  if (!dashboardMounted) return;
+  try {
+    await fetchSystemInfo();
+  } catch (error) {
+    logger.error('[DASHBOARD]', 'pollSystemInfo: failed to fetch', error);
+  }
+  if (dashboardMounted) systemInfoTimer = setTimeout(pollSystemInfo, 5000);
 }
 
 async function handleChooseOutbound(selector: string, tag: string) {
@@ -89,10 +118,30 @@ async function handleChooseOutbound(selector: string, tag: string) {
   await fetchDashboardSections();
 }
 
+async function handleTestLatency(section: string) {
+  store.set({ latencyFetching: true });
+  const result = await PerekopShellMethods.testGroupDelay(section);
+  if (result.success) {
+    store.set({ dashboardLatency: result.data });
+  } else {
+    logger.error('[DASHBOARD]', 'handleTestLatency: failed', result);
+    store.set({ dashboardLatency: {} });
+  }
+  store.set({ latencyFetching: false });
+}
+
 function renderSectionsWidget() {
   const sectionsWidget = store.get().sectionsWidget;
+  const latency = store.get().dashboardLatency;
+  const latencyFetching = store.get().latencyFetching;
   const container = document.getElementById('dashboard-sections-grid');
   if (!container) return;
+
+  const withLatency = (outbound: Perekop.Outbound): Perekop.Outbound => ({
+    ...outbound,
+    latency: outbound.code ? (latency[outbound.code] ?? null) : null,
+  });
+
   const sectionList =
     sectionsWidget.loading || sectionsWidget.failed
       ? [
@@ -106,14 +155,21 @@ function renderSectionsWidget() {
               withTagSelect: false,
             },
             onChooseOutbound: () => {},
+            onTestLatency: () => {},
+            latencyFetching,
           }),
         ]
       : sectionsWidget.data.map((section) =>
           renderSections({
             loading: false,
             failed: false,
-            section,
+            section: {
+              ...section,
+              outbounds: section.outbounds.map(withLatency),
+            },
             onChooseOutbound: handleChooseOutbound,
+            onTestLatency: handleTestLatency,
+            latencyFetching,
           }),
         );
   preserveScrollForPage(() => container.replaceChildren(...sectionList));
@@ -168,6 +224,33 @@ function renderTrafficTotalWidget() {
   );
 }
 
+function renderSystemInfoWidget() {
+  const systemInfo = store.get().systemInfoWidget;
+  const container = document.getElementById('dashboard-widget-system-info');
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
+      loading: systemInfo.loading,
+      failed: systemInfo.failed,
+      title: _('System info'),
+      items:
+        systemInfo.loading || systemInfo.failed
+          ? []
+          : [
+              {
+                key: _('Connections'),
+                value: String(systemInfo.data.connections),
+              },
+              { key: _('Memory'), value: prettyBytes(systemInfo.data.memory) },
+              {
+                key: _('Uptime'),
+                value: `${Math.floor(systemInfo.data.uptime / 60)} ${_('min')}`,
+              },
+            ],
+    }),
+  );
+}
+
 function renderServicesInfoWidget() {
   const services = store.get().servicesInfoWidget;
   const container = document.getElementById('dashboard-widget-service-info');
@@ -211,9 +294,11 @@ function onStoreUpdate(
   _prev: StoreType,
   diff: Partial<StoreType>,
 ) {
-  if (diff.sectionsWidget) renderSectionsWidget();
+  if (diff.sectionsWidget || diff.dashboardLatency || diff.latencyFetching)
+    renderSectionsWidget();
   if (diff.bandwidthWidget) renderBandwidthWidget();
   if (diff.trafficTotalWidget) renderTrafficTotalWidget();
+  if (diff.systemInfoWidget) renderSystemInfoWidget();
   if (diff.servicesInfoWidget) renderServicesInfoWidget();
 }
 
@@ -225,19 +310,25 @@ async function onPageMount() {
   if (!dashboardMounted) return;
   previousTraffic = undefined;
   void pollTraffic();
+  void pollSystemInfo();
 }
 
 function onPageUnmount() {
   dashboardMounted = false;
   store.unsubscribe(onStoreUpdate);
   clearTimeout(trafficTimer);
+  clearTimeout(systemInfoTimer);
   trafficTimer = undefined;
+  systemInfoTimer = undefined;
   previousTraffic = undefined;
   store.reset([
     'bandwidthWidget',
     'trafficTotalWidget',
     'servicesInfoWidget',
+    'systemInfoWidget',
     'sectionsWidget',
+    'dashboardLatency',
+    'latencyFetching',
   ]);
 }
 

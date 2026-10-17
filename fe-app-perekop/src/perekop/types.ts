@@ -24,6 +24,8 @@ export namespace Perekop {
     GET_TRAFFIC = 'get_traffic',
     GET_PROXIES = 'get_proxies',
     SET_GROUP_PROXY = 'set_group_proxy',
+    GET_RUNTIME_INFO = 'get_runtime_info',
+    TEST_GROUP_DELAY = 'test_group_delay',
   }
 
   export interface XrayTraffic {
@@ -32,6 +34,11 @@ export namespace Perekop {
     outbound: Record<string, { uplink: number; downlink: number }>;
   }
 
+  export interface XrayRuntimeInfo {
+    memory: number;
+    uptime: number;
+    connections: number;
+  }
   export interface XrayProxyGroup {
     outbounds: string[];
     selected: string;
@@ -44,6 +51,7 @@ export namespace Perekop {
     displayName: string;
     type: string;
     selected: boolean;
+    latency?: number | null;
   }
 
   export interface OutboundGroup {

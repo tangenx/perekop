@@ -18,6 +18,11 @@ export function render() {
         { id: 'dashboard-widget-service-info' },
         renderWidget({ loading: true, failed: false, title: '', items: [] }),
       ),
+      E(
+        'div',
+        { id: 'dashboard-widget-system-info' },
+        renderWidget({ loading: true, failed: false, title: '', items: [] }),
+      ),
     ]),
     E(
       'div',
@@ -32,6 +37,8 @@ export function render() {
           withTagSelect: false,
         },
         onChooseOutbound: () => {},
+        onTestLatency: () => {},
+        latencyFetching: false,
       }),
     ),
   ]);

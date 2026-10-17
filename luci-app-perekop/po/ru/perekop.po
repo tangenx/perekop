@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PEREKOP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-14 09:20+0300\n"
-"PO-Revision-Date: 2026-10-14 09:20+0300\n"
+"POT-Creation-Date: 2026-10-17 05:30+0300\n"
+"PO-Revision-Date: 2026-10-17 05:30+0300\n"
 "Last-Translator: tangenx\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -97,6 +97,9 @@ msgstr "Тип подключения"
 
 msgid "Connection URL"
 msgstr "URL подключения"
+
+msgid "Connections"
+msgstr "Соединения"
 
 msgid "Copy"
 msgstr "Копировать"
@@ -404,6 +407,12 @@ msgstr "Уровень логов"
 msgid "Main DNS"
 msgstr "Основной DNS"
 
+msgid "Memory"
+msgstr "Память"
+
+msgid "min"
+msgstr "мин"
+
 msgid "Mixed Proxy Port"
 msgstr "Порт смешанного прокси"
 
@@ -470,11 +479,11 @@ msgstr "Внешние списки подсетей"
 msgid "Restart perekop"
 msgstr "Перезапустить Perekop"
 
-msgid "Router DNS is not routed through sing-box"
-msgstr "DNS роутера не проходит через sing-box"
+msgid "Router DNS is not routed through xray"
+msgstr "DNS роутера НЕ маршрутизируется через xray"
 
-msgid "Router DNS is routed through sing-box"
-msgstr "DNS роутера проходит через sing-box"
+msgid "Router DNS is routed through xray"
+msgstr "DNS роутера маршрутизируется через xray"
 
 msgid "Routing Excluded IPs"
 msgstr "Исключённые из маршрутизации IP-адреса"
@@ -596,11 +605,17 @@ msgstr "Остановить perekop"
 msgid "Successfully copied!"
 msgstr "Успешно скопировано!"
 
+msgid "System info"
+msgstr "Системная информация"
+
 msgid "System information"
 msgstr "Системная информация"
 
 msgid "Table exist"
 msgstr "Таблица существует"
+
+msgid "Test latency"
+msgstr "Тест задержки"
 
 msgid "Text List"
 msgstr "Текстовый список"
@@ -634,6 +649,9 @@ msgstr "Неизвестная ошибка"
 
 msgid "Uplink"
 msgstr "Исходящий"
+
+msgid "Uptime"
+msgstr "Время работы"
 
 msgid "URL must start with vless://, ss://, trojan://, socks4/5://, or hysteria2://hy2://"
 msgstr "URL должен начинаться с vless://, ss://, trojan://, socks4/5:// или hysteria2:// hy2://"

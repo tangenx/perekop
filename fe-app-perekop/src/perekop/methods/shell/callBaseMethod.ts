@@ -5,11 +5,12 @@ export async function callBaseMethod<T>(
   method: Perekop.AvailableMethods,
   args: string[] = [],
   command: string = '/usr/bin/perekop',
+  timeout: number = 15000,
 ): Promise<Perekop.MethodResponse<T>> {
   const response = await executeShellCommand({
     command,
     args: [method as string, ...args],
-    timeout: 15000,
+    timeout,
   });
 
   if (response.stdout) {

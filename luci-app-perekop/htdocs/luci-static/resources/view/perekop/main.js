@@ -576,11 +576,11 @@ async function getConfigSections() {
 }
 
 // src/perekop/methods/shell/callBaseMethod.ts
-async function callBaseMethod(method, args = [], command = "/usr/bin/perekop") {
+async function callBaseMethod(method, args = [], command = "/usr/bin/perekop", timeout = 15e3) {
   const response = await executeShellCommand({
     command,
     args: [method, ...args],
-    timeout: 15e3
+    timeout
   });
   if (response.stdout) {
     try {
@@ -629,6 +629,8 @@ var Perekop;
     AvailableXrayAPIMethods2["GET_TRAFFIC"] = "get_traffic";
     AvailableXrayAPIMethods2["GET_PROXIES"] = "get_proxies";
     AvailableXrayAPIMethods2["SET_GROUP_PROXY"] = "set_group_proxy";
+    AvailableXrayAPIMethods2["GET_RUNTIME_INFO"] = "get_runtime_info";
+    AvailableXrayAPIMethods2["TEST_GROUP_DELAY"] = "test_group_delay";
   })(AvailableXrayAPIMethods = Perekop2.AvailableXrayAPIMethods || (Perekop2.AvailableXrayAPIMethods = {}));
 })(Perekop || (Perekop = {}));
 
@@ -661,6 +663,15 @@ var PerekopShellMethods = {
     group,
     proxy
   ]),
+  getXrayRuntimeInfo: async () => callBaseMethod(Perekop.AvailableMethods.XRAY_API, [
+    Perekop.AvailableXrayAPIMethods.GET_RUNTIME_INFO
+  ]),
+  testGroupDelay: async (group) => callBaseMethod(
+    Perekop.AvailableMethods.XRAY_API,
+    [Perekop.AvailableXrayAPIMethods.TEST_GROUP_DELAY, group],
+    "/usr/bin/perekop",
+    6e4
+  ),
   restart: async () => callBaseMethod(
     Perekop.AvailableMethods.RESTART,
     [],
@@ -1227,6 +1238,13 @@ var initialStore = {
     failed: false,
     data: []
   },
+  systemInfoWidget: {
+    loading: true,
+    failed: false,
+    data: { memory: 0, uptime: 0, connections: 0 }
+  },
+  dashboardLatency: {},
+  latencyFetching: false,
   ...initialDiagnosticStore
 };
 var store = new StoreService(initialStore);
@@ -1431,45 +1449,77 @@ function renderFailedState() {
   );
 }
 function renderLoadingState() {
-  return E(
-    "div",
-    {
-      class: "pdk_dashboard-page__outbound-section skeleton",
-      style: "height: 128px"
-    },
-    ""
-  );
+  return E("div", {
+    id: "dashboard-sections-grid-skeleton",
+    class: "pdk_dashboard-page__outbound-section skeleton",
+    style: "height: 128px"
+  });
 }
 function renderDefaultState({
   section,
-  onChooseOutbound
+  onChooseOutbound,
+  onTestLatency,
+  latencyFetching
 }) {
   function renderOutbound(outbound) {
-    const control = section.withTagSelect ? E("input", {
-      type: "radio",
-      name: `pdk-${section.code}`,
-      value: outbound.code,
-      checked: outbound.selected,
-      onchange: (event) => onChooseOutbound(
-        section.code,
-        event.target.value
-      )
-    }) : null;
-    return E("div", { class: "pdk_dashboard-page__outbound-grid__item" }, [
-      ...control ? [control] : [],
-      E("span", {}, outbound.displayName)
-    ]);
+    function getLatencyClass() {
+      if (!outbound.latency) {
+        return "pdk_dashboard-page__outbound-grid__item__latency--empty";
+      }
+      if (outbound.latency < 800) {
+        return "pdk_dashboard-page__outbound-grid__item__latency--green";
+      }
+      if (outbound.latency < 1500) {
+        return "pdk_dashboard-page__outbound-grid__item__latency--yellow";
+      }
+      return "pdk_dashboard-page__outbound-grid__item__latency--red";
+    }
+    return E(
+      "div",
+      {
+        class: `pdk_dashboard-page__outbound-grid__item ${outbound.selected ? "pdk_dashboard-page__outbound-grid__item--active" : ""} ${section.withTagSelect ? "pdk_dashboard-page__outbound-grid__item--selectable" : ""}`,
+        click: () => section.withTagSelect && onChooseOutbound(section.code, outbound.code)
+      },
+      [
+        E("b", {}, outbound.displayName),
+        E("div", { class: "pdk_dashboard-page__outbound-grid__item__footer" }, [
+          E(
+            "div",
+            { class: "pdk_dashboard-page__outbound-grid__item__type" },
+            outbound.type
+          ),
+          E(
+            "div",
+            { class: getLatencyClass() },
+            outbound.latency ? `${outbound.latency}ms` : "N/A"
+          )
+        ])
+      ]
+    );
   }
   return E("div", { class: "pdk_dashboard-page__outbound-section" }, [
-    E(
-      "div",
-      { class: "pdk_dashboard-page__outbound-section__title-section" },
-      E("b", {}, section.displayName)
-    ),
+    // Title with test latency
+    E("div", { class: "pdk_dashboard-page__outbound-section__title-section" }, [
+      E(
+        "div",
+        {
+          class: "pdk_dashboard-page__outbound-section__title-section__title"
+        },
+        section.displayName
+      ),
+      latencyFetching ? E("div", { class: "skeleton", style: "width: 99px; height: 28px" }) : E(
+        "button",
+        {
+          class: "btn dashboard-sections-grid-item-test-latency",
+          click: () => onTestLatency(section.code)
+        },
+        _("Test latency")
+      )
+    ]),
     E(
       "div",
       { class: "pdk_dashboard-page__outbound-grid" },
-      section.outbounds.map(renderOutbound)
+      section.outbounds.map((outbound) => renderOutbound(outbound))
     )
   ]);
 }
@@ -1559,6 +1609,11 @@ function render() {
         "div",
         { id: "dashboard-widget-service-info" },
         renderWidget({ loading: true, failed: false, title: "", items: [] })
+      ),
+      E(
+        "div",
+        { id: "dashboard-widget-system-info" },
+        renderWidget({ loading: true, failed: false, title: "", items: [] })
       )
     ]),
     E(
@@ -1574,7 +1629,10 @@ function render() {
           withTagSelect: false
         },
         onChooseOutbound: () => {
-        }
+        },
+        onTestLatency: () => {
+        },
+        latencyFetching: false
       })
     )
   ]);
@@ -1620,6 +1678,7 @@ async function fetchServicesInfo() {
 
 // src/perekop/tabs/dashboard/initController.ts
 var trafficTimer;
+var systemInfoTimer;
 var dashboardMounted = false;
 var previousTraffic;
 async function fetchDashboardSections() {
@@ -1676,11 +1735,31 @@ async function pollTraffic() {
   if (!dashboardMounted) return;
   try {
     const success = await fetchTraffic();
-    if (!success || !dashboardMounted) return;
-    trafficTimer = setTimeout(pollTraffic, 1500);
+    if (!dashboardMounted) return;
+    trafficTimer = setTimeout(pollTraffic, success ? 1500 : 5e3);
   } catch (error) {
     logger.error("[DASHBOARD]", "pollTraffic: failed to fetch", error);
+    if (dashboardMounted) trafficTimer = setTimeout(pollTraffic, 5e3);
   }
+}
+async function fetchSystemInfo() {
+  const result = await PerekopShellMethods.getXrayRuntimeInfo();
+  store.set({
+    systemInfoWidget: result.success ? { loading: false, failed: false, data: result.data } : {
+      loading: false,
+      failed: true,
+      data: { memory: 0, uptime: 0, connections: 0 }
+    }
+  });
+}
+async function pollSystemInfo() {
+  if (!dashboardMounted) return;
+  try {
+    await fetchSystemInfo();
+  } catch (error) {
+    logger.error("[DASHBOARD]", "pollSystemInfo: failed to fetch", error);
+  }
+  if (dashboardMounted) systemInfoTimer = setTimeout(pollSystemInfo, 5e3);
 }
 async function handleChooseOutbound(selector, tag) {
   const result = await PerekopShellMethods.setGroupProxy(selector, tag);
@@ -1692,10 +1771,27 @@ async function handleChooseOutbound(selector, tag) {
     );
   await fetchDashboardSections();
 }
+async function handleTestLatency(section) {
+  store.set({ latencyFetching: true });
+  const result = await PerekopShellMethods.testGroupDelay(section);
+  if (result.success) {
+    store.set({ dashboardLatency: result.data });
+  } else {
+    logger.error("[DASHBOARD]", "handleTestLatency: failed", result);
+    store.set({ dashboardLatency: {} });
+  }
+  store.set({ latencyFetching: false });
+}
 function renderSectionsWidget() {
   const sectionsWidget = store.get().sectionsWidget;
+  const latency = store.get().dashboardLatency;
+  const latencyFetching = store.get().latencyFetching;
   const container = document.getElementById("dashboard-sections-grid");
   if (!container) return;
+  const withLatency = (outbound) => ({
+    ...outbound,
+    latency: outbound.code ? latency[outbound.code] ?? null : null
+  });
   const sectionList = sectionsWidget.loading || sectionsWidget.failed ? [
     renderSections({
       loading: sectionsWidget.loading,
@@ -1707,14 +1803,22 @@ function renderSectionsWidget() {
         withTagSelect: false
       },
       onChooseOutbound: () => {
-      }
+      },
+      onTestLatency: () => {
+      },
+      latencyFetching
     })
   ] : sectionsWidget.data.map(
     (section) => renderSections({
       loading: false,
       failed: false,
-      section,
-      onChooseOutbound: handleChooseOutbound
+      section: {
+        ...section,
+        outbounds: section.outbounds.map(withLatency)
+      },
+      onChooseOutbound: handleChooseOutbound,
+      onTestLatency: handleTestLatency,
+      latencyFetching
     })
   );
   preserveScrollForPage(() => container.replaceChildren(...sectionList));
@@ -1760,6 +1864,29 @@ function renderTrafficTotalWidget() {
     })
   );
 }
+function renderSystemInfoWidget() {
+  const systemInfo = store.get().systemInfoWidget;
+  const container = document.getElementById("dashboard-widget-system-info");
+  if (!container) return;
+  container.replaceChildren(
+    renderWidget({
+      loading: systemInfo.loading,
+      failed: systemInfo.failed,
+      title: _("System info"),
+      items: systemInfo.loading || systemInfo.failed ? [] : [
+        {
+          key: _("Connections"),
+          value: String(systemInfo.data.connections)
+        },
+        { key: _("Memory"), value: prettyBytes(systemInfo.data.memory) },
+        {
+          key: _("Uptime"),
+          value: `${Math.floor(systemInfo.data.uptime / 60)} ${_("min")}`
+        }
+      ]
+    })
+  );
+}
 function renderServicesInfoWidget() {
   const services = store.get().servicesInfoWidget;
   const container = document.getElementById("dashboard-widget-service-info");
@@ -1789,9 +1916,11 @@ function renderServicesInfoWidget() {
   );
 }
 function onStoreUpdate(_next, _prev, diff) {
-  if (diff.sectionsWidget) renderSectionsWidget();
+  if (diff.sectionsWidget || diff.dashboardLatency || diff.latencyFetching)
+    renderSectionsWidget();
   if (diff.bandwidthWidget) renderBandwidthWidget();
   if (diff.trafficTotalWidget) renderTrafficTotalWidget();
+  if (diff.systemInfoWidget) renderSystemInfoWidget();
   if (diff.servicesInfoWidget) renderServicesInfoWidget();
 }
 async function onPageMount() {
@@ -1802,18 +1931,24 @@ async function onPageMount() {
   if (!dashboardMounted) return;
   previousTraffic = void 0;
   void pollTraffic();
+  void pollSystemInfo();
 }
 function onPageUnmount() {
   dashboardMounted = false;
   store.unsubscribe(onStoreUpdate);
   clearTimeout(trafficTimer);
+  clearTimeout(systemInfoTimer);
   trafficTimer = void 0;
+  systemInfoTimer = void 0;
   previousTraffic = void 0;
   store.reset([
     "bandwidthWidget",
     "trafficTotalWidget",
     "servicesInfoWidget",
-    "sectionsWidget"
+    "systemInfoWidget",
+    "sectionsWidget",
+    "dashboardLatency",
+    "latencyFetching"
   ]);
 }
 function registerLifecycleListeners() {
@@ -1925,7 +2060,28 @@ var styles = `
     border-color: var(--success-color-medium, green);
 }
 
+.pdk_dashboard-page__outbound-grid__item__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+}
 
+.pdk_dashboard-page__outbound-grid__item__latency--empty {
+    color: var(--primary-color-low, lightgray);
+}
+
+.pdk_dashboard-page__outbound-grid__item__latency--green {
+    color: var(--success-color-medium, green);
+}
+
+.pdk_dashboard-page__outbound-grid__item__latency--yellow {
+    color: var(--warn-color-medium, orange);
+}
+
+.pdk_dashboard-page__outbound-grid__item__latency--red {
+    color: var(--error-color-medium, red);
+}
 `;
 
 // src/perekop/tabs/dashboard/index.ts
@@ -2221,7 +2377,7 @@ async function runFakeIPCheck() {
     items: [
       {
         state: checks2.router ? "success" : "warning",
-        key: checks2.router ? _("Router DNS is routed through sing-box") : _("Router DNS is not routed through sing-box"),
+        key: checks2.router ? _("Router DNS is routed through xray") : _("Router DNS is not routed through xray"),
         value: ""
       },
       {
@@ -3351,7 +3507,7 @@ function getPerekopVersionRow(diagnosticsSystemInfo) {
 }
 
 // src/perekop/tabs/diagnostic/initController.ts
-async function fetchSystemInfo() {
+async function fetchSystemInfo2() {
   const result = await PerekopShellMethods.getSystemInfo();
   store.set({
     diagnosticsSystemInfo: result.success ? { loading: false, ...result.data } : {
@@ -3534,17 +3690,21 @@ async function runChecks() {
     diagnosticsRunAction: { loading: true },
     diagnosticsChecks: loadingDiagnosticsChecksStore.diagnosticsChecks
   });
-  try {
-    await runDnsCheck();
-    await runXrayCheck();
-    await runNftCheck();
-    await runSectionsCheck();
-    await runFakeIPCheck();
-  } catch (error) {
-    logger.error("[DIAGNOSTIC]", "runChecks - e", error);
-  } finally {
-    store.set({ diagnosticsRunAction: { loading: false } });
+  const checks2 = [
+    runDnsCheck,
+    runXrayCheck,
+    runNftCheck,
+    runSectionsCheck,
+    runFakeIPCheck
+  ];
+  for (const check of checks2) {
+    try {
+      await check();
+    } catch (error) {
+      logger.error("[DIAGNOSTIC]", "runChecks - e", error);
+    }
   }
+  store.set({ diagnosticsRunAction: { loading: false } });
 }
 function onPageUnmount2() {
   store.unsubscribe(onStoreUpdate2);
@@ -3564,7 +3724,7 @@ function onPageMount2() {
   renderDiagnosticSystemInfoWidget();
   renderWiki();
   void fetchServicesInfo();
-  void fetchSystemInfo();
+  void fetchSystemInfo2();
 }
 async function initController2() {
   onMount("diagnostic-status").then(() => {

@@ -38,6 +38,17 @@ export const PerekopShellMethods = {
       group,
       proxy,
     ]),
+  getXrayRuntimeInfo: async () =>
+    callBaseMethod<Perekop.XrayRuntimeInfo>(Perekop.AvailableMethods.XRAY_API, [
+      Perekop.AvailableXrayAPIMethods.GET_RUNTIME_INFO,
+    ]),
+  testGroupDelay: async (group: string) =>
+    callBaseMethod<Record<string, number>>(
+      Perekop.AvailableMethods.XRAY_API,
+      [Perekop.AvailableXrayAPIMethods.TEST_GROUP_DELAY, group],
+      '/usr/bin/perekop',
+      60000,
+    ),
   restart: async () =>
     callBaseMethod<unknown>(
       Perekop.AvailableMethods.RESTART,

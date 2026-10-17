@@ -38,6 +38,20 @@ grep -q "105 perekop" /etc/iproute2/rt_tables && sed -i "/105 perekop/d" /etc/ip
 
 /etc/init.d/perekop stop
 
+# Revert the GOMEMLIMIT patch of the xray init script and the uci option,
+# so the xray-core package behaves stock again
+if [ -f /etc/init.d/xray ] && grep -q GOMEMLIMIT /etc/init.d/xray; then
+    awk '
+        /config_get memlimit "config" "memlimit"/ { skip = 1; print "\tprocd_set_param env XRAY_LOCATION_ASSET=\"$datadir\""; next }
+        skip && /^	}$/ { skip = 0; next }
+        !skip { print }
+    ' /etc/init.d/xray > /etc/init.d/xray.tmp &&
+        mv /etc/init.d/xray.tmp /etc/init.d/xray &&
+        chmod +x /etc/init.d/xray
+fi
+uci -q delete xray.config.memlimit
+uci -q commit xray
+
 exit 0
 endef
 

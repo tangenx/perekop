@@ -3,28 +3,28 @@
     "call": "✔ Enabled",
     "key": "✔ Enabled",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:181"
+      "src/perekop/tabs/dashboard/initController.ts:270"
     ]
   },
   {
     "call": "✔ Running",
     "key": "✔ Running",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:191"
+      "src/perekop/tabs/dashboard/initController.ts:280"
     ]
   },
   {
     "call": "✘ Disabled",
     "key": "✘ Disabled",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:182"
+      "src/perekop/tabs/dashboard/initController.ts:271"
     ]
   },
   {
     "call": "✘ Stopped",
     "key": "✘ Stopped",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:191"
+      "src/perekop/tabs/dashboard/initController.ts:280"
     ]
   },
   {
@@ -197,6 +197,13 @@
     ]
   },
   {
+    "call": "Connections",
+    "key": "Connections",
+    "places": [
+      "src/perekop/tabs/dashboard/initController.ts:241"
+    ]
+  },
+  {
     "call": "Copy",
     "key": "Copy",
     "places": [
@@ -221,7 +228,7 @@
     "call": "Dashboard currently unavailable",
     "key": "Dashboard currently unavailable",
     "places": [
-      "src/perekop/tabs/dashboard/partials/renderSections.ts:14"
+      "src/perekop/tabs/dashboard/partials/renderSections.ts:16"
     ]
   },
   {
@@ -351,8 +358,8 @@
     "call": "Downlink",
     "key": "Downlink",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:131",
-      "src/perekop/tabs/dashboard/initController.ts:157"
+      "src/perekop/tabs/dashboard/initController.ts:193",
+      "src/perekop/tabs/dashboard/initController.ts:219"
     ]
   },
   {
@@ -922,6 +929,20 @@
     ]
   },
   {
+    "call": "Memory",
+    "key": "Memory",
+    "places": [
+      "src/perekop/tabs/dashboard/initController.ts:244"
+    ]
+  },
+  {
+    "call": "min",
+    "key": "min",
+    "places": [
+      "src/perekop/tabs/dashboard/initController.ts:247"
+    ]
+  },
+  {
     "call": "Mixed Proxy Port",
     "key": "Mixed Proxy Port",
     "places": [
@@ -1009,7 +1030,7 @@
     "call": "Perekop",
     "key": "Perekop",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:179"
+      "src/perekop/tabs/dashboard/initController.ts:268"
     ]
   },
   {
@@ -1076,15 +1097,15 @@
     ]
   },
   {
-    "call": "Router DNS is not routed through sing-box",
-    "key": "Router DNS is not routed through sing-box",
+    "call": "Router DNS is not routed through xray",
+    "key": "Router DNS is not routed through xray",
     "places": [
       "src/perekop/tabs/diagnostic/checks/runFakeIPCheck.ts:51"
     ]
   },
   {
-    "call": "Router DNS is routed through sing-box",
-    "key": "Router DNS is routed through sing-box",
+    "call": "Router DNS is routed through xray",
+    "key": "Router DNS is routed through xray",
     "places": [
       "src/perekop/tabs/diagnostic/checks/runFakeIPCheck.ts:50"
     ]
@@ -1284,7 +1305,7 @@
     "call": "Services info",
     "key": "Services info",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:173"
+      "src/perekop/tabs/dashboard/initController.ts:262"
     ]
   },
   {
@@ -1374,6 +1395,13 @@
     ]
   },
   {
+    "call": "System info",
+    "key": "System info",
+    "places": [
+      "src/perekop/tabs/dashboard/initController.ts:235"
+    ]
+  },
+  {
     "call": "System information",
     "key": "System information",
     "places": [
@@ -1385,6 +1413,13 @@
     "key": "Table exist",
     "places": [
       "src/perekop/tabs/diagnostic/checks/runNftCheck.ts:69"
+    ]
+  },
+  {
+    "call": "Test latency",
+    "key": "Test latency",
+    "places": [
+      "src/perekop/tabs/dashboard/partials/renderSections.ts:94"
     ]
   },
   {
@@ -1420,14 +1455,14 @@
     "call": "Traffic",
     "key": "Traffic",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:124"
+      "src/perekop/tabs/dashboard/initController.ts:186"
     ]
   },
   {
     "call": "Traffic Total",
     "key": "Traffic Total",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:147"
+      "src/perekop/tabs/dashboard/initController.ts:209"
     ]
   },
   {
@@ -1469,8 +1504,15 @@
     "call": "Uplink",
     "key": "Uplink",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:129",
-      "src/perekop/tabs/dashboard/initController.ts:153"
+      "src/perekop/tabs/dashboard/initController.ts:191",
+      "src/perekop/tabs/dashboard/initController.ts:215"
+    ]
+  },
+  {
+    "call": "Uptime",
+    "key": "Uptime",
+    "places": [
+      "src/perekop/tabs/dashboard/initController.ts:246"
     ]
   },
   {
@@ -1627,7 +1669,7 @@
     "call": "Xray",
     "key": "Xray",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:190"
+      "src/perekop/tabs/dashboard/initController.ts:279"
     ]
   },
   {

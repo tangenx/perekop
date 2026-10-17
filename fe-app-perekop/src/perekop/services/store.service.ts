@@ -158,6 +158,13 @@ export interface StoreType {
     failed: boolean;
     data: Perekop.OutboundGroup[];
   };
+  systemInfoWidget: {
+    loading: boolean;
+    failed: boolean;
+    data: Perekop.XrayRuntimeInfo;
+  };
+  dashboardLatency: Record<string, number>;
+  latencyFetching: boolean;
   diagnosticsRunAction: { loading: boolean };
   diagnosticsChecks: Array<IDiagnosticsChecksStoreItem>;
   diagnosticsActions: {
@@ -206,6 +213,13 @@ const initialStore: StoreType = {
     failed: false,
     data: [],
   },
+  systemInfoWidget: {
+    loading: true,
+    failed: false,
+    data: { memory: 0, uptime: 0, connections: 0 },
+  },
+  dashboardLatency: {},
+  latencyFetching: false,
   ...initialDiagnosticStore,
 };
 

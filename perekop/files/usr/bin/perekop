@@ -476,6 +476,52 @@ dnsmasq_restore() {
     /etc/init.d/dnsmasq restart
 }
 
+add_cron_job() {
+    local community_lists remote_domain_lists remote_subnet_lists update_interval cron_job
+    config_get community_lists "$section" "community_lists"
+    config_get remote_domain_lists "$section" "remote_domain_lists"
+    config_get remote_subnet_lists "$section" "remote_subnet_lists"
+    config_get update_interval "settings" "update_interval"
+
+    case "$update_interval" in
+    "1h")
+        cron_job="13 * * * * /usr/bin/perekop list_update"
+        ;;
+    "3h")
+        cron_job="13 */3 * * * /usr/bin/perekop list_update"
+        ;;
+    "12h")
+        cron_job="13 */12 * * * /usr/bin/perekop list_update"
+        ;;
+    "1d")
+        cron_job="13 9 * * * /usr/bin/perekop list_update"
+        ;;
+    "3d")
+        cron_job="13 9 */3 * * * /usr/bin/perekop list_update"
+        ;;
+    *)
+        log "Invalid update_interval value: $update_interval"
+        return
+        ;;
+    esac
+
+    if [ -n "$community_lists" ] ||
+        [ -n "$remote_domain_lists" ] ||
+        [ -n "$remote_subnet_lists" ]; then
+        remove_cron_job
+        crontab -l | {
+            cat
+            echo "$cron_job"
+        } | crontab -
+        log "The cron job has been created: $cron_job"
+    fi
+}
+
+remove_cron_job() {
+    (crontab -l | grep -v "/usr/bin/perekop list_update") | crontab -
+    log "The cron job removed"
+}
+
 
 # Downloads lists. Called synchronously at the first start after a boot
 # (when /tmp is empty) and from cron in the background afterwards.
@@ -959,7 +1005,7 @@ nft_list_all_traffic_from_ip() {
 
 # xray funcs
 xray_configure_service() {
-    local xray_enabled xray_datadir xray_conffiles xray_config_path
+    local xray_enabled xray_datadir xray_conffiles xray_config_path xray_memlimit
 
     xray_enabled="$(uci -q get xray.enabled.enabled)"
     if [ "$xray_enabled" != "1" ]; then
@@ -984,7 +1030,67 @@ xray_configure_service() {
         log "Configuration file path has been set to $xray_config_path"
     fi
 
+    # Go respects the soft GOMEMLIMIT limit: the runtime keeps the heap
+    # under it and collects garbage more aggressively instead of growing
+    # until the router runs out of memory. A hard rlimit cannot be used:
+    # Go reserves gigabytes of address space and would fail to start
+    config_get xray_memlimit "settings" "xray_memlimit" "25"
+    if [ -n "$xray_memlimit" ] && [ "$xray_memlimit" != "0" ]; then
+        if [ "$(uci -q get xray.config.memlimit)" != "$xray_memlimit" ]; then
+            uci_set "xray" "config" "memlimit" "$xray_memlimit"
+            uci_commit "xray"
+        fi
+        xray_patch_init_memlimit
+    else
+        [ -n "$(uci -q get xray.config.memlimit)" ] && {
+            uci -q delete xray.config.memlimit
+            uci_commit "xray"
+        }
+        xray_restore_init_memlimit
+    fi
+
     [ -f /etc/rc.d/S99xray ] && log "Disable xray autostart" && /etc/init.d/xray disable
+}
+
+# The xray-core package owns /etc/init.d/xray and does not read the
+# memlimit from uci, so the init script is patched in place. procd
+# replaces the whole env on a repeated procd_set_param env call, so the
+# patch rewrites the asset line to pass both variables in one call.
+# The patch is idempotent and re-applied on every start: a xray-core
+# upgrade replaces the file and the next start heals it again
+xray_patch_init_memlimit() {
+    grep -q "GOMEMLIMIT" /etc/init.d/xray 2>/dev/null && return 0
+
+    awk '
+        /procd_set_param env XRAY_LOCATION_ASSET=/ && !done {
+            done = 1
+            print "\tconfig_get memlimit \"config\" \"memlimit\""
+            print "\tif [ -n \"$memlimit\" ]; then"
+            print "\t\tprocd_set_param env XRAY_LOCATION_ASSET=\"$datadir\" GOMEMLIMIT=\"${memlimit}MiB\""
+            print "\telse"
+            print "\t\tprocd_set_param env XRAY_LOCATION_ASSET=\"$datadir\""
+            print "\tfi"
+            next
+        }
+        { print }
+    ' /etc/init.d/xray > /etc/init.d/xray.tmp &&
+        mv /etc/init.d/xray.tmp /etc/init.d/xray &&
+        chmod +x /etc/init.d/xray
+
+    log "xray init script patched with GOMEMLIMIT support" "debug"
+}
+
+xray_restore_init_memlimit() {
+    [ -f /etc/init.d/xray ] || return 0
+    grep -q "GOMEMLIMIT" /etc/init.d/xray || return 0
+
+    awk '
+        /config_get memlimit "config" "memlimit"/ { skip = 1; print "\tprocd_set_param env XRAY_LOCATION_ASSET=\"$datadir\""; next }
+        skip && /^	}$/ { skip = 0; next }
+        !skip { print }
+    ' /etc/init.d/xray > /etc/init.d/xray.tmp &&
+        mv /etc/init.d/xray.tmp /etc/init.d/xray &&
+        chmod +x /etc/init.d/xray
 }
 
 xray_init_config() {
@@ -1052,6 +1158,66 @@ xray_configure_inbounds() {
             "settings": {"address": $address, "port": $dns_port, "network": "tcp,udp"},
             "tag": $tag
         }')")
+
+    xray_configure_latency_socks
+}
+
+_print_proxy_section() {
+    local section="$1"
+    local connection_type
+    config_get connection_type "$section" "connection_type"
+    [ "$connection_type" = "proxy" ] && echo "$section"
+}
+
+get_latency_socks_port() {
+    local target="$1"
+    local port=$((XRAY_LATENCY_SOCKS_BASE_PORT - 1)) section
+    for section in $(config_foreach _print_proxy_section "section"); do
+        port=$((port + 1))
+        [ "$section" = "$target" ] && { echo "$port"; return 0; }
+    done
+    echo ""
+}
+
+# One loopback SOCKS inbound per proxy section, routed to the section
+# balancer. The balancer override API then allows measuring the delay of
+# every outbound of the group through this inbound. Single-link sections
+# get a one-outbound balancer wrapper: the override is the only per
+# outbound switch Xray offers
+xray_configure_latency_socks() {
+    local port=$((XRAY_LATENCY_SOCKS_BASE_PORT - 1)) section proxy_config_type balancer_tag
+    for section in $(config_foreach _print_proxy_section "section"); do
+        port=$((port + 1))
+        config_get proxy_config_type "$section" "proxy_config_type"
+        case "$proxy_config_type" in
+        selector | urltest)
+            balancer_tag="$(get_outbound_tag_by_section "$section")"
+            ;;
+        url | outbound)
+            balancer_tag="$section-latency"
+            config=$(xray_cm_add_balancer "$config" "$balancer_tag" \
+                "$(get_outbound_tag_by_section "$section")" "random" "")
+            ;;
+        *)
+            continue
+            ;;
+        esac
+
+        config=$(xray_cm_add_inbound "$config" "$(jq -n \
+            --arg tag "latency-$section" \
+            --arg listen "$XRAY_LATENCY_SOCKS_INBOUND_ADDRESS" \
+            --argjson port "$port" \
+            '{
+                "listen": $listen,
+                "port": $port,
+                "protocol": "socks",
+                "settings": {"auth": "noauth", "udp": false},
+                "tag": $tag
+            }')")
+        config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+            --arg tag "latency-$section" --arg balancer "$balancer_tag" \
+            '{"inboundTag": [$tag], "balancerTag": $balancer}')")
+    done
 }
 
 xray_configure_outbounds() {
@@ -1237,12 +1403,10 @@ collect_user_domain_list() {
     items="$(parse_domain_or_subnet_string_to_commas_string "$items" "domains")"
     [ -z "$items" ] && return 0
 
-    local first=1
     local item
     for item in ${items//,/ }; do
-        if [ "$first" -eq 1 ]; then
+        if [ -z "$domain_items" ]; then
             domain_items="domain:$item"
-            first=0
         else
             domain_items="$domain_items,domain:$item"
         fi
@@ -1757,7 +1921,7 @@ check_proxy() {
 
     nolog "Checking xray configuration..."
 
-    if ! xray run -test -c "$xray_config_path" 2>&1 | grep -q "Configuration OK."; then
+    if ! XRAY_LOCATION_ASSET="$TMP_XRAY_FOLDER" xray run -test -c "$xray_config_path" 2>&1 | grep -q "Configuration OK."; then
         nolog "Invalid configuration"
         return 1
     fi
@@ -2296,8 +2460,8 @@ check_fakeip() {
 #######################################
 # Xray gRPC API interface for the dashboard
 # Arguments:
-#   $1 - Action: get_traffic, get_proxies, set_group_proxy
-#   $2 - Group tag (selector section name) for set_group_proxy
+#   $1 - Action: get_traffic, get_proxies, set_group_proxy, get_runtime_info, test_group_delay
+#   $2 - Group tag (selector section name) for set_group_proxy and test_group_delay
 #   $3 - Target outbound tag for set_group_proxy
 # Outputs:
 #   JSON formatted response
@@ -2305,6 +2469,8 @@ check_fakeip() {
 #   xray_api get_traffic
 #   xray_api get_proxies
 #   xray_api set_group_proxy <group> <proxy_tag|"">
+#   xray_api get_runtime_info
+#   xray_api test_group_delay <group>
 #######################################
 XRAY_API_URL="$XRAY_API_LISTEN_ADDRESS:$XRAY_API_LISTEN_PORT"
 
@@ -2329,8 +2495,16 @@ xray_api() {
         xray_api_set_group_proxy "$2" "$3"
         ;;
 
+    get_runtime_info)
+        xray_api_get_runtime_info
+        ;;
+
+    test_group_delay)
+        xray_api_test_group_delay "$2"
+        ;;
+
     *)
-        echo '{"error":"unknown action","available":["get_traffic","get_proxies","set_group_proxy"]}' | jq .
+        echo '{"error":"unknown action","available":["get_traffic","get_proxies","set_group_proxy","get_runtime_info","test_group_delay"]}' | jq .
         return 1
         ;;
     esac
@@ -2346,17 +2520,29 @@ xray_api_get_proxies() {
         config_get proxy_config_type "$section" "proxy_config_type"
 
         [ "$connection_type" != "proxy" ] && return 0
-        case "$proxy_config_type" in
-        selector | urltest) ;;
-        *) return 0 ;;
-        esac
 
         local links_var links outbounds_json="[]" i=1 outbound_tag
-        if [ "$proxy_config_type" = "selector" ]; then
+        case "$proxy_config_type" in
+        selector)
             links_var="selector_proxy_links"
-        else
+            ;;
+        urltest)
             links_var="urltest_proxy_links"
-        fi
+            ;;
+        url | outbound)
+            # A single outbound is listed as its own one-entry group, so the
+            # dashboard shows it together with its latency test
+            outbound_tag="$(get_outbound_tag_by_section "$section")"
+            XRAY_API_PROXIES_RESULT=$(jq -n --argjson cur "$XRAY_API_PROXIES_RESULT" --arg section "$section" \
+                --arg tag "$outbound_tag" \
+                '$cur + {($section): {"outbounds": [$tag], "selected": $tag}}')
+            return 0
+            ;;
+        *)
+            return 0
+            ;;
+        esac
+
         config_get links "$section" "$links_var"
 
         for link in $links; do
@@ -2416,6 +2602,106 @@ xray_api_set_group_proxy() {
     uci commit perekop
 
     echo "{\"success\":true,\"group\":\"$group\",\"proxy\":\"$proxy_tag\"}" | jq .
+}
+
+# Runtime state of the core for the dashboard system info widget
+xray_api_get_runtime_info() {
+    local pid memory=0 uptime=0 connections=0
+
+    pid="$(pgrep -f "^/usr/bin/xray" | head -n 1)"
+    if [ -n "$pid" ]; then
+        memory=$(awk '/^VmRSS/ {print $2}' /proc/"$pid"/status 2>/dev/null)
+        memory=$((memory * 1024))
+        local uptime_now jiffies clk
+        uptime_now=$(cut -d. -f1 /proc/uptime)
+        jiffies=$(awk '{print $22}' /proc/"$pid"/stat 2> /dev/null)
+        # OpenWrt ships no getconf; all its kernels use CLK_TCK=100
+        clk=100
+        uptime=$((uptime_now - jiffies / clk))
+        connections=$(netstat -tn 2> /dev/null | awk '$6 == "ESTABLISHED"' | grep -c ":1602 ")
+    fi
+
+    echo "{\"memory\":$memory,\"uptime\":$uptime,\"connections\":$connections}" | jq .
+}
+
+# Measure the delay of every outbound of a proxy section: the section
+# balancer is overridden to each outbound in turn and a probe request is
+# sent through the dedicated loopback SOCKS inbound of the section
+xray_api_test_group_delay() {
+    local group="$1"
+    if [ -z "$group" ]; then
+        echo '{"error":"group required"}' | jq .
+        return 1
+    fi
+
+    local connection_type proxy_config_type
+    config_get connection_type "$group" "connection_type"
+    config_get proxy_config_type "$group" "proxy_config_type"
+    if [ "$connection_type" != "proxy" ]; then
+        echo "{\"error\":\"$group is not a proxy section\"}" | jq .
+        return 1
+    fi
+
+    local balancer_tag port links_var links tags="" outbound_tag
+    case "$proxy_config_type" in
+    selector)
+        links_var="selector_proxy_links"
+        balancer_tag="$(get_outbound_tag_by_section "$group")"
+        ;;
+    urltest)
+        links_var="urltest_proxy_links"
+        balancer_tag="$(get_outbound_tag_by_section "$group")"
+        ;;
+    url | outbound)
+        links_var=""
+        tags="$(get_outbound_tag_by_section "$group")"
+        balancer_tag="$group-latency"
+        ;;
+    *)
+        echo "{\"error\":\"$group has no testable outbounds\"}" | jq .
+        return 1
+        ;;
+    esac
+
+    local i=1
+    if [ -n "$links_var" ]; then
+        config_get links "$group" "$links_var"
+        for link in $links; do
+            tags="$tags $(get_outbound_tag_by_section "$group-$i")"
+            i=$((i + 1))
+        done
+    fi
+
+    port="$(get_latency_socks_port "$group")"
+    if [ -z "$port" ]; then
+        echo '{"error":"latency inbound not configured, restart perekop"}' | jq .
+        return 1
+    fi
+
+    # The previously selected override is restored after the measurement
+    local restore_tag result="{}" delay_ms
+    restore_tag="$(uci -q get "perekop.$group.selector_selected")"
+
+    for outbound_tag in $tags; do
+        delay_ms=0
+        if xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$outbound_tag" > /dev/null 2>&1; then
+            delay_ms=$(curl -s -o /dev/null -m 5 \
+                -w "%{time_total}" --socks5-hostname "$XRAY_LATENCY_SOCKS_INBOUND_ADDRESS:$port" \
+                "$XRAY_LATENCY_TEST_URL" 2> /dev/null | awk '{ printf "%d", $1 * 1000 }')
+            [ -z "$delay_ms" ] && delay_ms=0
+        fi
+
+        result=$(jq -n --argjson cur "$result" --arg tag "$outbound_tag" --argjson ms "$delay_ms" \
+            '$cur + {($tag): $ms}')
+    done
+
+    if [ -n "$restore_tag" ]; then
+        xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$restore_tag" > /dev/null 2>&1
+    else
+        xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" -r > /dev/null 2>&1
+    fi
+
+    echo "$result" | jq .
 }
 
 

@@ -44,6 +44,9 @@ XRAY_DNS_INBOUND_PORT=53
 XRAY_SERVICE_SOCKS_INBOUND_TAG="service-socks-in"
 XRAY_SERVICE_SOCKS_INBOUND_ADDRESS="127.0.0.1"
 XRAY_SERVICE_SOCKS_INBOUND_PORT=4534
+XRAY_LATENCY_SOCKS_INBOUND_ADDRESS="127.0.0.1"
+XRAY_LATENCY_SOCKS_BASE_PORT=4600
+XRAY_LATENCY_TEST_URL="https://www.gstatic.com/generate_204"
 # Outbounds
 XRAY_DIRECT_OUTBOUND_TAG="direct-out"
 XRAY_BLACKHOLE_OUTBOUND_TAG="blackhole-out"
@@ -72,5 +75,5 @@ COMMUNITY_SERVICES="russia_inside russia_outside ukraine_inside geoblock block p
 
 # geosite.dat tags are uppercase with dashes: russia_inside -> RUSSIA-INSIDE
 community_geosite_tag() {
-    echo "$1" | tr '[:lower:]_' '[:upper:]-'
+    echo "$1" | tr 'a-z_' 'A-Z-'
 }

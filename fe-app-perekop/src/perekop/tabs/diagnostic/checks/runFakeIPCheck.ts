@@ -47,8 +47,8 @@ export async function runFakeIPCheck() {
       {
         state: checks.router ? 'success' : 'warning',
         key: checks.router
-          ? _('Router DNS is routed through sing-box')
-          : _('Router DNS is not routed through sing-box'),
+          ? _('Router DNS is routed through xray')
+          : _('Router DNS is not routed through xray'),
         value: '',
       },
       {

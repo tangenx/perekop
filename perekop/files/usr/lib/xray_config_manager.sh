@@ -570,8 +570,9 @@ xray_cm_check_config() {
     local check_output
 
     # Xray 25.1.30 exits with code 23 even for a valid config,
-    # so success is detected by the output marker, not the exit code
-    check_output=$(xray run -test -c "$config_path" 2>&1)
+    # so success is detected by the output marker, not the exit code.
+    # geosite.dat is resolved via the asset dir, not the config location
+    check_output=$(XRAY_LOCATION_ASSET="$TMP_XRAY_FOLDER" xray run -test -c "$config_path" 2>&1)
     if ! printf '%s\n' "$check_output" | grep -q "Configuration OK."; then
         log "Xray configuration $config_path is invalid. Aborted." "fatal"
         log "$check_output" "error"
