@@ -1947,7 +1947,6 @@ function onPageUnmount() {
     "servicesInfoWidget",
     "systemInfoWidget",
     "sectionsWidget",
-    "dashboardLatency",
     "latencyFetching"
   ]);
 }

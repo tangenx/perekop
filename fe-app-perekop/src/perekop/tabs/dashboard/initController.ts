@@ -327,9 +327,10 @@ function onPageUnmount() {
     'servicesInfoWidget',
     'systemInfoWidget',
     'sectionsWidget',
-    'dashboardLatency',
     'latencyFetching',
   ]);
+  // dashboardLatency is kept: measured delays stay valid across
+  // tab switches and the diagnostics round trip
 }
 
 function registerLifecycleListeners() {

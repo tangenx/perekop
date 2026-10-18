@@ -1122,7 +1122,12 @@ xray_configure_log() {
 xray_configure_inbounds() {
     log "Configure the inbounds section of an Xray JSON configuration" "debug"
 
-    # TProxy inbound: fakedns sniffing restores the domain for fake IP targets
+    # TProxy inbound: sniffing restores the domain for fake IP targets.
+    # fakedns maps TLS connections back by SNI, http extracts the Host
+    # header: without the http sniffer plain-HTTP requests to routed
+    # domains lose the domain, fall to the default freedom outbound,
+    # resolve to a fake IP again and loop through tproxy forever,
+    # exhausting the core memory
     config=$(xray_cm_add_inbound "$config" "$(jq -n \
         --arg tag "$XRAY_TPROXY_INBOUND_TAG" \
         --arg listen "$XRAY_TPROXY_INBOUND_ADDRESS" \
@@ -1132,7 +1137,7 @@ xray_configure_inbounds() {
             "port": $port,
             "protocol": "dokodemo-door",
             "settings": {"followRedirect": true, "network": "tcp,udp"},
-            "sniffing": {"enabled": true, "destOverride": ["fakedns"]},
+            "sniffing": {"enabled": true, "destOverride": ["http", "tls", "fakedns"]},
             "streamSettings": {"sockopt": {"tproxy": "tproxy"}},
             "tag": $tag
         }')")
@@ -1590,6 +1595,11 @@ configure_outbound_handler() {
                 i=$((i + 1))
             done
 
+            # Without fallbackTag a failing balancer drops the connection to
+            # the default freedom outbound: its dial resolves the target
+            # domain to a fake IP again and loops through tproxy until the
+            # router is out of memory. Blackhole fails fast instead
+            [ -z "$fallback_tag" ] && fallback_tag="$XRAY_BLACKHOLE_OUTBOUND_TAG"
             selector_tag="$(get_outbound_tag_by_section "$section")"
             config="$(xray_cm_add_balancer "$config" "$selector_tag" "$section-" "$strategy" "$fallback_tag")"
 
@@ -1739,6 +1749,17 @@ xray_configure_route() {
 
     config_foreach include_fully_routed_ips "section"
     config_foreach configure_routing_for_section_lists "section"
+
+    # Last-resort guard: a fake IP must never be dialed directly. Sniffing
+    # normally restores the domain and earlier rules route the connection,
+    # but when the protocol cannot be sniffed the connection would fall to
+    # the default freedom outbound, resolve the same whitelisted domain to
+    # a fake IP again and loop through tproxy until the router runs out of
+    # memory. Dropping is the only safe handling
+    config=$(xray_cm_add_route_rule "$config" "$(jq -n \
+        --arg tag "$XRAY_TPROXY_INBOUND_TAG" --arg outbound "$XRAY_BLACKHOLE_OUTBOUND_TAG" \
+        --arg range "$XRAY_FAKEIP_INET4_RANGE" \
+        '{"inboundTag": [$tag], "ip": [$range], "outboundTag": $outbound}')")
 }
 
 include_fully_routed_ips() {
@@ -2678,9 +2699,19 @@ xray_api_test_group_delay() {
         return 1
     fi
 
-    # The previously selected override is restored after the measurement
+    # The previously selected override is restored after the measurement,
+    # including when the caller (LuCI fs.exec timeout) kills the script
+    # mid-loop: a stale override would pin user traffic to one outbound
     local restore_tag result="{}" delay_ms
     restore_tag="$(uci -q get "perekop.$group.selector_selected")"
+    _xray_api_delay_restore() {
+        if [ -n "$restore_tag" ]; then
+            xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$restore_tag" > /dev/null 2>&1
+        else
+            xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" -r > /dev/null 2>&1
+        fi
+    }
+    trap _xray_api_delay_restore EXIT INT TERM
 
     for outbound_tag in $tags; do
         delay_ms=0
@@ -2695,11 +2726,8 @@ xray_api_test_group_delay() {
             '$cur + {($tag): $ms}')
     done
 
-    if [ -n "$restore_tag" ]; then
-        xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$restore_tag" > /dev/null 2>&1
-    else
-        xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" -r > /dev/null 2>&1
-    fi
+    trap - EXIT INT TERM
+    _xray_api_delay_restore
 
     echo "$result" | jq .
 }
