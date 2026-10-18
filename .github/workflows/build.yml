@@ -117,4 +117,4 @@ jobs:
           prerelease: false
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
-          body_file: ./RELEASE_NOTES.md
+          body_path: ./RELEASE_NOTES.md
