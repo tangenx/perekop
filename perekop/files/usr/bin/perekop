@@ -1105,6 +1105,9 @@ xray_init_config() {
     xray_configure_log
     xray_configure_inbounds
     xray_configure_outbounds
+    # The core's own sockets carry the mark that mangle_output skips, so a
+    # dial towards a fake IP or a routed subnet never loops back into tproxy
+    config=$(xray_cm_set_outbounds_mark "$config" "$((NFT_OUTBOUND_MARK))")
     xray_configure_dns
     xray_configure_route
     xray_configure_experimental
@@ -1257,18 +1260,33 @@ xray_configure_fakeip_test_outbound() {
     fi
 }
 
+# Proxy groups are Xray balancers: their tag in outboundTag silently falls back
+# to the first outbound (direct-out), which loops on fake IPs
+get_route_target_key_by_section() {
+    local section="$1"
+    local connection_type proxy_config_type
+    config_get connection_type "$section" "connection_type"
+    config_get proxy_config_type "$section" "proxy_config_type"
+    if [ "$connection_type" = "proxy" ] &&
+        { [ "$proxy_config_type" = "selector" ] || [ "$proxy_config_type" = "urltest" ]; }; then
+        echo "balancerTag"
+    else
+        echo "outboundTag"
+    fi
+}
+
 xray_configure_service_socks_inbound() {
     local download_lists_via_proxy
     config_get_bool download_lists_via_proxy "settings" "download_lists_via_proxy" 0
     if [ "$download_lists_via_proxy" -eq 1 ]; then
-        local download_lists_via_proxy_section section_outbound_tag
+        local download_lists_via_proxy_section
         config_get download_lists_via_proxy_section "settings" "download_lists_via_proxy_section"
-        section_outbound_tag="$(get_outbound_tag_by_section "$download_lists_via_proxy_section")"
         config=$(xray_cf_add_socks_inbound_and_route_rule "$config" \
             "$XRAY_SERVICE_SOCKS_INBOUND_TAG" \
             "$XRAY_SERVICE_SOCKS_INBOUND_ADDRESS" \
             "$XRAY_SERVICE_SOCKS_INBOUND_PORT" \
-            "$section_outbound_tag")
+            "$(get_outbound_tag_by_section "$download_lists_via_proxy_section")" \
+            "$(get_route_target_key_by_section "$download_lists_via_proxy_section")")
     fi
 
     config_foreach configure_section_mixed_proxy "section"
@@ -1291,12 +1309,16 @@ configure_section_mixed_proxy() {
 
     config_get mixed_proxy_port "$section" "mixed_proxy_port"
 
+    local target target_key
+    target="$(get_outbound_tag_by_section "$section")"
+    target_key="$(get_route_target_key_by_section "$section")"
+
     # Xray has no combined inbound: SOCKS on the configured port, HTTP on the next one
     config=$(xray_cf_add_socks_inbound_and_route_rule "$config" \
         "$(get_inbound_tag_by_section "$section-mixed")" \
         "$mixed_proxy_address" \
         "$mixed_proxy_port" \
-        "$(get_outbound_tag_by_section "$section")")
+        "$target" "$target_key")
 
     local http_tag http_port
     http_tag="$(get_inbound_tag_by_section "$section-mixed-http")"
@@ -1305,8 +1327,8 @@ configure_section_mixed_proxy() {
         --arg tag "$http_tag" --arg listen "$mixed_proxy_address" --argjson port "$http_port" \
         '{"listen": $listen, "port": $port, "protocol": "http", "settings": {}, "tag": $tag}')")
     config=$(xray_cm_add_route_rule "$config" "$(jq -n \
-        --arg tag "$http_tag" --arg outbound "$(get_outbound_tag_by_section "$section")" \
-        '{"inboundTag": [$tag], "outboundTag": $outbound}')")
+        --arg tag "$http_tag" --arg target "$target" --arg key "$target_key" \
+        '{"inboundTag": [$tag]} + {($key): $target}')")
 
     log "SOCKS proxy of the '$section' section on $mixed_proxy_address:$mixed_proxy_port, HTTP on $((mixed_proxy_port + 1))" "info"
 }
@@ -1725,12 +1747,14 @@ xray_configure_route() {
     fi
 
     # The check domain reports the exit IP of the first proxy section
-    local first_outbound_section first_outbound_tag
+    local first_outbound_section
     first_outbound_section="$(get_first_outbound_section)"
     if [ -n "$first_outbound_section" ]; then
-        first_outbound_tag="$(get_outbound_tag_by_section "$first_outbound_section")"
         config=$(xray_cm_add_route_rule "$config" "$(xray_cf_build_section_rule \
-            "$XRAY_TPROXY_INBOUND_TAG" "$first_outbound_tag" "domain" "[\"full:$CHECK_PROXY_IP_DOMAIN\"]" 0)")
+            "$XRAY_TPROXY_INBOUND_TAG" \
+            "$(get_outbound_tag_by_section "$first_outbound_section")" \
+            "$(get_route_target_key_by_section "$first_outbound_section")" \
+            "domain" "[\"full:$CHECK_PROXY_IP_DOMAIN\"]")")
     fi
 
     local routing_excluded_ips
@@ -1781,9 +1805,10 @@ include_fully_routed_ips() {
 
     config=$(xray_cm_add_route_rule "$config" "$(jq -n \
         --arg tag "$XRAY_TPROXY_INBOUND_TAG" \
-        --arg outbound "$(get_outbound_tag_by_section "$section")" \
+        --arg target "$(get_outbound_tag_by_section "$section")" \
+        --arg key "$(get_route_target_key_by_section "$section")" \
         --argjson ips "$ips_json" \
-        '{"inboundTag": [$tag], "source": $ips, "outboundTag": $outbound}')")
+        '{"inboundTag": [$tag], "source": $ips} + {($key): $target}')")
 }
 
 nft_list_all_traffic_from_ip_items() {
@@ -1813,9 +1838,9 @@ configure_common_block_rules() {
         ips=$(read_section_ips "$block_section")
 
         [ "$domains" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
-            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_BLACKHOLE_OUTBOUND_TAG" "domain" "$domains" 0)")
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_BLACKHOLE_OUTBOUND_TAG" "outboundTag" "domain" "$domains")")
         [ "$ips" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
-            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_BLACKHOLE_OUTBOUND_TAG" "ip" "$ips" 0)")
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_BLACKHOLE_OUTBOUND_TAG" "outboundTag" "ip" "$ips")")
     done
 }
 
@@ -1833,7 +1858,7 @@ configure_common_exclusion_rules() {
         ips=$(read_section_ips "$exclusion_section")
 
         [ "$ips" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
-            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_DIRECT_OUTBOUND_TAG" "ip" "$ips" 0)")
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$XRAY_DIRECT_OUTBOUND_TAG" "outboundTag" "ip" "$ips")")
     done
 }
 
@@ -1850,24 +1875,17 @@ configure_routing_for_section_lists() {
 
     case "$section_connection_type" in
     proxy | vpn)
-        local use_balancer=0
-        local proxy_config_type
-        config_get proxy_config_type "$section" "proxy_config_type"
-        if [ "$section_connection_type" = "proxy" ] &&
-            { [ "$proxy_config_type" = "selector" ] || [ "$proxy_config_type" = "urltest" ]; }; then
-            use_balancer=1
-        fi
-
-        local outbound_tag
-        outbound_tag=$(get_outbound_tag_by_section "$section")
+        local target target_key
+        target=$(get_outbound_tag_by_section "$section")
+        target_key=$(get_route_target_key_by_section "$section")
 
         domains=$(read_section_domains "$section")
         ips=$(read_section_ips "$section")
 
         [ "$domains" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
-            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$outbound_tag" "domain" "$domains" "$use_balancer")")
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$target" "$target_key" "domain" "$domains")")
         [ "$ips" != "[]" ] && config=$(xray_cm_add_route_rule "$config" \
-            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$outbound_tag" "ip" "$ips" "$use_balancer")")
+            "$(xray_cf_build_section_rule "$XRAY_TPROXY_INBOUND_TAG" "$target" "$target_key" "ip" "$ips")")
         ;;
     block | exclusion)
         # Handled by the common rules
@@ -2716,9 +2734,11 @@ xray_api_test_group_delay() {
     for outbound_tag in $tags; do
         delay_ms=0
         if xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$outbound_tag" > /dev/null 2>&1; then
+            # curl prints time_total even for failed transfers (code 000):
+            # a dead outbound must report 0, not its connect-failure time
             delay_ms=$(curl -s -o /dev/null -m 5 \
-                -w "%{time_total}" --socks5-hostname "$XRAY_LATENCY_SOCKS_INBOUND_ADDRESS:$port" \
-                "$XRAY_LATENCY_TEST_URL" 2> /dev/null | awk '{ printf "%d", $1 * 1000 }')
+                -w "%{http_code} %{time_total}" --socks5-hostname "$XRAY_LATENCY_SOCKS_INBOUND_ADDRESS:$port" \
+                "$XRAY_LATENCY_TEST_URL" 2> /dev/null | awk '$1 != "000" { printf "%d", $2 * 1000 }')
             [ -z "$delay_ms" ] && delay_ms=0
         fi
 

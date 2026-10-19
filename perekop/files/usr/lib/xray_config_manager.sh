@@ -451,6 +451,23 @@ xray_cm_set_transport_for_outbound() {
 }
 
 #######################################
+# Set SO_MARK on the sockets of every outbound.
+# Arguments:
+#   config: string (JSON), configuration to modify
+#   mark: integer, firewall mark
+# Outputs:
+#   Writes updated JSON configuration to stdout
+#######################################
+xray_cm_set_outbounds_mark() {
+    local config="$1"
+    local mark="$2"
+
+    printf '%s\n' "$config" | jq --argjson mark "$mark" '
+        .outbounds |= map(.streamSettings.sockopt.mark = $mark)
+    '
+}
+
+#######################################
 # Add a routing rule to the route section.
 # Arguments:
 #   config: string (JSON), configuration to modify

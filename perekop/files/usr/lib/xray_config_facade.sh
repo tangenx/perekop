@@ -94,7 +94,8 @@ xray_cf_add_fakedns_server() {
 #   tag: string, inbound tag
 #   listen_address: string, IP to listen on
 #   listen_port: integer, port to listen on
-#   outbound: string, outbound tag for the route rule
+#   target: string, outbound or balancer tag for the route rule
+#   target_key: string, "outboundTag" or "balancerTag"
 # Outputs:
 #   Writes updated JSON configuration to stdout
 #######################################
@@ -103,7 +104,8 @@ xray_cf_add_socks_inbound_and_route_rule() {
     local tag="$2"
     local listen_address="$3"
     local listen_port="$4"
-    local outbound="$5"
+    local target="$5"
+    local target_key="$6"
 
     config=$(xray_cm_add_inbound "$config" "$(jq -n \
         --arg tag "$tag" --arg listen "$listen_address" --argjson port "$listen_port" \
@@ -116,8 +118,8 @@ xray_cf_add_socks_inbound_and_route_rule() {
         }')")
 
     config=$(xray_cm_add_route_rule "$config" "$(jq -n \
-        --arg tag "$tag" --arg outbound "$outbound" \
-        '{"inboundTag": [$tag], "outboundTag": $outbound}')")
+        --arg tag "$tag" --arg target "$target" --arg key "$target_key" \
+        '{"inboundTag": [$tag]} + {($key): $target}')")
 
     echo "$config"
 }
@@ -428,27 +430,24 @@ xray_cf_add_interface_outbound() {
 # Build a routing rule JSON for the given section.
 # Arguments:
 #   inbound_tag: string, tproxy inbound tag
-#   outbound: string, outbound or balancer tag
+#   target: string, outbound or balancer tag
+#   target_key: string, "outboundTag" or "balancerTag"
 #   match_key: string, "domain" or "ip"
 #   match_json: string (JSON), array of match values
-#   use_balancer: "1" to target a balancer, "0" for an outbound
 # Outputs:
 #   Rule JSON object
 #######################################
 xray_cf_build_section_rule() {
     local inbound_tag="$1"
-    local outbound="$2"
-    local match_key="$3"
-    local match_json="$4"
-    local use_balancer="$5"
+    local target="$2"
+    local target_key="$3"
+    local match_key="$4"
+    local match_json="$5"
 
-    local target_key="outboundTag"
-    [ "$use_balancer" = "1" ] && target_key="balancerTag"
-
-    jq -n --arg inbound "$inbound_tag" --arg outbound "$outbound" \
+    jq -n --arg inbound "$inbound_tag" --arg target "$target" \
         --arg key "$target_key" --argjson match "$match_json" \
         --arg mkey "$match_key" \
-        '{"inboundTag": [$inbound]} + {($key): $outbound} + {($mkey): $match}'
+        '{"inboundTag": [$inbound]} + {($key): $target} + {($mkey): $match}'
 }
 
 #######################################

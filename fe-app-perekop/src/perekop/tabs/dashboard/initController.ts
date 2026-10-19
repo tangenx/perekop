@@ -294,7 +294,8 @@ function onStoreUpdate(
   _prev: StoreType,
   diff: Partial<StoreType>,
 ) {
-  if (diff.sectionsWidget || diff.dashboardLatency || diff.latencyFetching)
+  // latencyFetching is a boolean: its diff entry is falsy when it turns off
+  if (diff.sectionsWidget || diff.dashboardLatency || 'latencyFetching' in diff)
     renderSectionsWidget();
   if (diff.bandwidthWidget) renderBandwidthWidget();
   if (diff.trafficTotalWidget) renderTrafficTotalWidget();

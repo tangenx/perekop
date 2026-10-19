@@ -1916,7 +1916,7 @@ function renderServicesInfoWidget() {
   );
 }
 function onStoreUpdate(_next, _prev, diff) {
-  if (diff.sectionsWidget || diff.dashboardLatency || diff.latencyFetching)
+  if (diff.sectionsWidget || diff.dashboardLatency || "latencyFetching" in diff)
     renderSectionsWidget();
   if (diff.bandwidthWidget) renderBandwidthWidget();
   if (diff.trafficTotalWidget) renderTrafficTotalWidget();
