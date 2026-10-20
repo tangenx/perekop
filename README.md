@@ -38,6 +38,7 @@ sh -c "$(wget -O - https://raw.githubusercontent.com/tangenx/perekop/main/instal
 - Hysteria2 требует Xray >= 26.1.13 (сток OpenWrt 24.10 — 25.1.30); установите свежий бинарник через `install.sh --xray-latest`.
 - В mixed-прокси SOCKS работает на выбранном порту, HTTP — на порту +1.
 - `resolve_real_ip_for_routing` (DNS-resolve sing-box при маршрутизации) не поддерживается.
+- Маршрутизация работает только по IPv4: fake-IP, tproxy и списки подсетей — IPv4. IPv6-трафик клиентов обходит туннель и раскрывает реальный адрес клиента, поэтому он отбрасывается настройкой «Block IPv6» (включена по умолчанию). Отключайте её только если IPv6 клиентам не нужен.
 
 ## Важно знать
 
