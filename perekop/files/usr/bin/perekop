@@ -354,6 +354,18 @@ create_nft_rules() {
         log "NTP traffic exclude for proxy"
         nft insert rule inet "$NFT_TABLE_NAME" mangle udp dport 123 return
     fi
+
+    local block_ipv6
+    config_get_bool block_ipv6 "settings" "block_ipv6" "1"
+    if [ "$block_ipv6" -eq 1 ]; then
+        # The core handles IPv4 only: a fake IP is an IPv4 address and the
+        # tproxy redirect is IPv4 as well. Forwarded IPv6 traffic would reach
+        # the internet with the real address of the client and bypass the
+        # tunnel, so it is dropped in the forward chain
+        log "Block IPv6 traffic from the source interfaces"
+        nft add chain inet "$NFT_TABLE_NAME" forward6 '{ type filter hook forward priority filter; policy accept; }'
+        nft add rule inet "$NFT_TABLE_NAME" forward6 iifname "@$NFT_INTERFACE_SET_NAME" meta nfproto ipv6 counter drop
+    fi
 }
 
 backup_dnsmasq_config_option() {
@@ -650,11 +662,11 @@ download_geosite() {
         return 0
     fi
 
-    local tmpfile http_proxy_address
+    local tmpfile proxy_address
     tmpfile=$(mktemp)
-    http_proxy_address="$(get_service_proxy_address)"
+    proxy_address="$(get_service_proxy_address)"
 
-    if download_to_file "$GEOSITE_URL" "$tmpfile" "$http_proxy_address"; then
+    if download_to_file "$GEOSITE_URL" "$tmpfile" "$proxy_address"; then
         if [ -s "$tmpfile" ]; then
             mv "$tmpfile" "$TMP_XRAY_FOLDER/geosite.dat"
             echolog "✅ geosite.dat downloaded"
@@ -682,12 +694,12 @@ download_geosite() {
 download_normalized_list() {
     local url="$1"
     local output_filepath="$2"
-    local http_proxy_address tmpfile file_extension
+    local proxy_address tmpfile file_extension
 
-    http_proxy_address="$(get_service_proxy_address)"
+    proxy_address="$(get_service_proxy_address)"
     tmpfile=$(mktemp)
 
-    download_to_file "$url" "$tmpfile" "$http_proxy_address"
+    download_to_file "$url" "$tmpfile" "$proxy_address"
 
     if [ $? -ne 0 ] || [ ! -s "$tmpfile" ]; then
         log "Download $url list failed" "error"
@@ -778,11 +790,11 @@ import_community_service_subnet_list_handler() {
     *) return 0 ;;
     esac
 
-    local tmpfile http_proxy_address
+    local tmpfile proxy_address
     tmpfile=$(mktemp)
-    http_proxy_address="$(get_service_proxy_address)"
+    proxy_address="$(get_service_proxy_address)"
 
-    download_to_file "$URL" "$tmpfile" "$http_proxy_address"
+    download_to_file "$URL" "$tmpfile" "$proxy_address"
 
     if [ $? -ne 0 ] || [ ! -s "$tmpfile" ]; then
         log "Download $service list failed" "error"
@@ -794,6 +806,11 @@ import_community_service_subnet_list_handler() {
     else
         nft_add_set_elements_from_file_chunked "$tmpfile" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
     fi
+
+    # Keep the list on disk: the same file feeds the IP matchers of the
+    # section, so the community subnets are routed by the core and not only
+    # intercepted by nft
+    cp "$tmpfile" "$TMP_LISTS_FOLDER/community-$service.lst"
 
     rm -f "$tmpfile"
 }
