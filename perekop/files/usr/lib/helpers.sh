@@ -284,23 +284,28 @@ migration_rename_config_key() {
 }
 
 # Download URL to file
+# The proxy address is a SOCKS5 endpoint of the service inbound, the HTTP
+# proxy protocol is not spoken there
 download_to_file() {
     local url="$1"
     local filepath="$2"
-    local http_proxy_address="$3"
+    local socks_proxy_address="$3"
     local retries="${4:-3}"
     local wait="${5:-2}"
 
+    local attempt
     for attempt in $(seq 1 "$retries"); do
-        if [ -n "$http_proxy_address" ]; then
-            http_proxy="http://$http_proxy_address" https_proxy="http://$http_proxy_address" wget -O "$filepath" "$url" && break
+        if [ -n "$socks_proxy_address" ]; then
+            curl -fsSL --socks5-hostname "$socks_proxy_address" -o "$filepath" "$url" && return 0
         else
-            wget -O "$filepath" "$url" && break
+            curl -fsSL -o "$filepath" "$url" && return 0
         fi
 
         log "Attempt $attempt/$retries to download $url failed" "warn"
         sleep "$wait"
     done
+
+    return 1
 }
 
 convert_crlf_to_lf() {
