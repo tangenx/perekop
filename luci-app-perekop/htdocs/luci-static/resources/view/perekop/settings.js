@@ -319,6 +319,17 @@ function createSettingsContent(section, xrayFeatures = []) {
   o.rmempty = false;
 
   o = section.option(
+    form.Flag,
+    "block_ipv6",
+    _("Block IPv6"),
+    _(
+      "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client",
+    ),
+  );
+  o.default = "1";
+  o.rmempty = false;
+
+  o = section.option(
     form.DynamicList,
     "routing_excluded_ips",
     _("Routing Excluded IPs"),

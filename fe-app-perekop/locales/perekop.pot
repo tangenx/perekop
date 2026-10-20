@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PEREKOP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 02:30+0300\n"
-"PO-Revision-Date: 2026-10-17 02:30+0300\n"
+"POT-Creation-Date: 2026-10-20 15:21+0300\n"
+"PO-Revision-Date: 2026-10-20 15:21+0300\n"
 "Last-Translator: tangenx <me@tangenx.dev>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -36,11 +36,11 @@ msgstr ""
 msgid "Additional marking rules found"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:470
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:492
 msgid "At least one valid domain must be specified. Comments-only content is not allowed."
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:513
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:540
 msgid "At least one valid subnet or IP must be specified. Comments-only content is not allowed."
 msgstr ""
 
@@ -54,6 +54,14 @@ msgstr ""
 
 #: src/perekop/tabs/diagnostic/partials/renderAvailableActions.ts:43
 msgid "Available actions"
+msgstr ""
+
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:324
+msgid "Block IPv6"
+msgstr ""
+
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325
+msgid "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client"
 msgstr ""
 
 #: src/perekop/tabs/diagnostic/checks/runDnsCheck.ts:63
@@ -107,8 +115,8 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:270
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:358
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:275
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:363
 msgid "Community Lists"
 msgstr ""
 
@@ -180,8 +188,8 @@ msgstr ""
 msgid "Disable the QUIC protocol to improve compatibility or fix issues with video streaming"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:380
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:407
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:390
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:425
 msgid "Disabled"
 msgstr ""
 
@@ -189,21 +197,21 @@ msgstr ""
 msgid "DNS on router"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:238
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:243
 #: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:15
 msgid "DNS over HTTPS (DoH)"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:239
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:244
 msgid "DNS over TLS (DoT)"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:235
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:240
 #: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:12
 msgid "DNS Protocol Type"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:248
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:253
 #: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:23
 msgid "DNS Server"
 msgstr ""
@@ -216,7 +224,7 @@ msgstr ""
 msgid "Do not panic, everything can be fixed, just..."
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:225
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:230
 msgid "Domain Resolver"
 msgstr ""
 
@@ -246,8 +254,8 @@ msgstr ""
 msgid "Downloading all lists via specific Proxy/VPN"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:381
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:408
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:391
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:426
 msgid "Dynamic List"
 msgstr ""
 
@@ -255,11 +263,11 @@ msgstr ""
 msgid "Enable autostart"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:226
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:231
 msgid "Enable built-in DNS resolver for domains handled by this section"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:656
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:680
 msgid "Enable Mixed Proxy"
 msgstr ""
 
@@ -267,7 +275,7 @@ msgstr ""
 msgid "Enable Output Network Interface"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:657
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:681
 msgid "Enable the mixed proxy, allowing this section to route traffic through both HTTP and SOCKS proxies"
 msgstr ""
 
@@ -275,31 +283,31 @@ msgstr ""
 msgid "Enter complete outbound configuration in JSON format"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:449
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:469
 msgid "Enter domain names separated by commas, spaces, or newlines. You can add comments using //"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:420
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:438
 msgid "Enter domain names without protocols, e.g. example.com or sub.example.com"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:390
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:403
 msgid "Enter subnets in CIDR notation or single IP addresses"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:139
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:138
 msgid "Every 1 minute"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:140
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:139
 msgid "Every 3 minutes"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:138
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:137
 msgid "Every 30 seconds"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:141
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:140
 msgid "Every 5 minutes"
 msgstr ""
 
@@ -321,7 +329,7 @@ msgstr ""
 msgid "Failed to execute!"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:629
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:653
 msgid "Fully Routed IPs"
 msgstr ""
 
@@ -539,11 +547,11 @@ msgstr ""
 msgid "List Update Frequency"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:537
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:561
 msgid "Local Domain Lists"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:560
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:584
 msgid "Local Subnet Lists"
 msgstr ""
 
@@ -563,7 +571,7 @@ msgstr ""
 msgid "min"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:669
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:693
 msgid "Mixed Proxy Port"
 msgstr ""
 
@@ -571,7 +579,7 @@ msgstr ""
 msgid "Monitored Interfaces"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:179
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:184
 msgid "Network Interface"
 msgstr ""
 
@@ -635,15 +643,15 @@ msgstr ""
 msgid "Proxy traffic is routed via FakeIP"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:304
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:309
 msgid "Regional options cannot be used together"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:583
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:607
 msgid "Remote Domain Lists"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:606
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:630
 msgid "Remote Subnet Lists"
 msgstr ""
 
@@ -659,7 +667,7 @@ msgstr ""
 msgid "Router DNS is routed through xray"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:324
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:335
 msgid "Routing Excluded IPs"
 msgstr ""
 
@@ -691,7 +699,7 @@ msgstr ""
 msgid "Run Diagnostic"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:323
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:328
 msgid "Russia inside restrictions"
 msgstr ""
 
@@ -699,8 +707,8 @@ msgstr ""
 msgid "Sections"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:271
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:359
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:276
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:364
 msgid "Select a predefined list for routing"
 msgstr ""
 
@@ -720,11 +728,11 @@ msgstr ""
 msgid "Select how to configure the proxy"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:180
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:185
 msgid "Select network interface for VPN connection"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:249
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:254
 #: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:24
 msgid "Select or enter DNS server address"
 msgstr ""
@@ -733,15 +741,15 @@ msgstr ""
 msgid "Select path for Xray config file. Change this ONLY if you know what you are doing"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:236
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:241
 msgid "Select the DNS protocol type for the domain resolver"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:405
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:423
 msgid "Select the list type for adding custom domains"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:378
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:388
 msgid "Select the list type for adding custom subnets"
 msgstr ""
 
@@ -782,7 +790,7 @@ msgstr ""
 msgid "Show Xray config"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:670
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:694
 msgid "SOCKS on this port, HTTP on the next port"
 msgstr ""
 
@@ -790,24 +798,24 @@ msgstr ""
 msgid "Source Network Interface"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:336
 msgid "Specify a local IP address to be excluded from routing"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:630
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:654
 msgid "Specify local IP addresses or subnets whose traffic will always be routed through the configured route"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:584
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:608
 msgid "Specify remote URLs to download and use domain lists"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:607
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:631
 msgid "Specify remote URLs to download and use subnet lists"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:538
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:561
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:562
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:585
 msgid "Specify the path to the list file located on the router filesystem"
 msgstr ""
 
@@ -839,8 +847,8 @@ msgstr ""
 msgid "Test latency"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:382
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:409
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:392
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:427
 msgid "Text List"
 msgstr ""
 
@@ -848,11 +856,11 @@ msgstr ""
 msgid "The DNS server used to look up the IP address of an upstream DNS server"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:136
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:135
 msgid "The interval between connectivity tests"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:150
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:148
 msgid "The URL used to test server connectivity"
 msgstr ""
 
@@ -868,7 +876,7 @@ msgstr ""
 msgid "Troubleshooting"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:240
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:245
 #: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:16
 msgid "UDP (Unprotected DNS)"
 msgstr ""
@@ -908,7 +916,7 @@ msgstr ""
 msgid "URLTest"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:135
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:134
 msgid "URLTest Check Interval"
 msgstr ""
 
@@ -916,31 +924,31 @@ msgstr ""
 msgid "URLTest Proxy Links"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:149
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:147
 msgid "URLTest Testing URL"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:404
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:422
 msgid "User Domain List Type"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:419
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:437
 msgid "User Domains"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:448
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:468
 msgid "User Domains List"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:377
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:387
 msgid "User Subnet List Type"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:389
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:402
 msgid "User Subnets"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:493
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:515
 msgid "User Subnets List"
 msgstr ""
 
@@ -961,8 +969,8 @@ msgstr ""
 msgid "Valid"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:484
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:525
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:506
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:552
 msgid "Validation errors:"
 msgstr ""
 
@@ -981,11 +989,11 @@ msgstr ""
 msgid "vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:306
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:311
 msgid "Warning: %s cannot be used together with %s. Previous selections have been removed."
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:325
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:330
 msgid "Warning: Russia inside can only be used with %s. %s already in Russia inside and have been removed from selection."
 msgstr ""
 

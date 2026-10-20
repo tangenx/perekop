@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PEREKOP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 05:30+0300\n"
-"PO-Revision-Date: 2026-10-17 05:30+0300\n"
+"POT-Creation-Date: 2026-10-20 18:21+0300\n"
+"PO-Revision-Date: 2026-10-20 18:21+0300\n"
 "Last-Translator: tangenx\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -46,6 +46,12 @@ msgstr ""
 
 msgid "Available actions"
 msgstr "Доступные действия"
+
+msgid "Block IPv6"
+msgstr "Блокировать IPv6"
+
+msgid "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client"
+msgstr "Блокировать трафик IPv6 от исходных сетевых интерфейсов. Прокси-движок работает только с IPv4, поэтому IPv6-соединения обходят туннель и раскрывают реальный адрес клиента"
 
 msgid "Bootsrap DNS"
 msgstr "Bootstrap DNS"
