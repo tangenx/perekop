@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PEREKOP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 15:21+0300\n"
-"PO-Revision-Date: 2026-10-20 15:21+0300\n"
+"POT-Creation-Date: 2026-10-26 14:00+0300\n"
+"PO-Revision-Date: 2026-10-26 14:00+0300\n"
 "Last-Translator: tangenx <me@tangenx.dev>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -16,19 +16,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/perekop/tabs/dashboard/initController.ts:270
+#: src/perekop/tabs/dashboard/initController.ts:277
 msgid "✔ Enabled"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:280
+#: src/perekop/tabs/dashboard/initController.ts:287
 msgid "✔ Running"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:271
+#: src/perekop/tabs/dashboard/initController.ts:278
 msgid "✘ Disabled"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:280
+#: src/perekop/tabs/dashboard/initController.ts:287
 msgid "✘ Stopped"
 msgstr ""
 
@@ -44,7 +44,7 @@ msgstr ""
 msgid "At least one valid subnet or IP must be specified. Comments-only content is not allowed."
 msgstr ""
 
-#: src/perekop/methods/custom/getDashboardSections.ts:63
+#: src/perekop/methods/custom/getDashboardSections.ts:70
 msgid "Auto"
 msgstr ""
 
@@ -140,7 +140,7 @@ msgstr ""
 msgid "Connection URL"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:241
+#: src/perekop/tabs/dashboard/initController.ts:248
 msgid "Connections"
 msgstr ""
 
@@ -232,8 +232,8 @@ msgstr ""
 msgid "Dont Touch My DHCP!"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:193
-#: src/perekop/tabs/dashboard/initController.ts:219
+#: src/perekop/tabs/dashboard/initController.ts:200
+#: src/perekop/tabs/dashboard/initController.ts:226
 msgid "Downlink"
 msgstr ""
 
@@ -563,11 +563,11 @@ msgstr ""
 msgid "Main DNS"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:244
+#: src/perekop/tabs/dashboard/initController.ts:251
 msgid "Memory"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:247
+#: src/perekop/tabs/dashboard/initController.ts:254
 msgid "min"
 msgstr ""
 
@@ -619,7 +619,7 @@ msgstr ""
 msgid "Path cannot be empty"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:268
+#: src/perekop/tabs/dashboard/initController.ts:275
 msgid "Perekop"
 msgstr ""
 
@@ -777,7 +777,7 @@ msgstr ""
 msgid "Selector Proxy Links"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:262
+#: src/perekop/tabs/dashboard/initController.ts:269
 msgid "Services info"
 msgstr ""
 
@@ -831,7 +831,7 @@ msgstr ""
 msgid "Successfully copied!"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:235
+#: src/perekop/tabs/dashboard/initController.ts:242
 msgid "System info"
 msgstr ""
 
@@ -843,7 +843,7 @@ msgstr ""
 msgid "Table exist"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/partials/renderSections.ts:94
+#: src/perekop/tabs/dashboard/partials/renderSections.ts:103
 msgid "Test latency"
 msgstr ""
 
@@ -864,11 +864,11 @@ msgstr ""
 msgid "The URL used to test server connectivity"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:186
+#: src/perekop/tabs/dashboard/initController.ts:193
 msgid "Traffic"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:209
+#: src/perekop/tabs/dashboard/initController.ts:216
 msgid "Traffic Total"
 msgstr ""
 
@@ -895,12 +895,12 @@ msgstr ""
 msgid "Unknown error"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:191
-#: src/perekop/tabs/dashboard/initController.ts:215
+#: src/perekop/tabs/dashboard/initController.ts:198
+#: src/perekop/tabs/dashboard/initController.ts:222
 msgid "Uplink"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:246
+#: src/perekop/tabs/dashboard/initController.ts:253
 msgid "Uptime"
 msgstr ""
 
@@ -997,7 +997,7 @@ msgstr ""
 msgid "Warning: Russia inside can only be used with %s. %s already in Russia inside and have been removed from selection."
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:279
+#: src/perekop/tabs/dashboard/initController.ts:286
 msgid "Xray"
 msgstr ""
 

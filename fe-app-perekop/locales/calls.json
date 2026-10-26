@@ -3,28 +3,28 @@
     "call": "✔ Enabled",
     "key": "✔ Enabled",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:270"
+      "src/perekop/tabs/dashboard/initController.ts:277"
     ]
   },
   {
     "call": "✔ Running",
     "key": "✔ Running",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:280"
+      "src/perekop/tabs/dashboard/initController.ts:287"
     ]
   },
   {
     "call": "✘ Disabled",
     "key": "✘ Disabled",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:271"
+      "src/perekop/tabs/dashboard/initController.ts:278"
     ]
   },
   {
     "call": "✘ Stopped",
     "key": "✘ Stopped",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:280"
+      "src/perekop/tabs/dashboard/initController.ts:287"
     ]
   },
   {
@@ -52,7 +52,7 @@
     "call": "Auto",
     "key": "Auto",
     "places": [
-      "src/perekop/methods/custom/getDashboardSections.ts:63"
+      "src/perekop/methods/custom/getDashboardSections.ts:70"
     ]
   },
   {
@@ -214,7 +214,7 @@
     "call": "Connections",
     "key": "Connections",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:241"
+      "src/perekop/tabs/dashboard/initController.ts:248"
     ]
   },
   {
@@ -372,8 +372,8 @@
     "call": "Downlink",
     "key": "Downlink",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:193",
-      "src/perekop/tabs/dashboard/initController.ts:219"
+      "src/perekop/tabs/dashboard/initController.ts:200",
+      "src/perekop/tabs/dashboard/initController.ts:226"
     ]
   },
   {
@@ -946,14 +946,14 @@
     "call": "Memory",
     "key": "Memory",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:244"
+      "src/perekop/tabs/dashboard/initController.ts:251"
     ]
   },
   {
     "call": "min",
     "key": "min",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:247"
+      "src/perekop/tabs/dashboard/initController.ts:254"
     ]
   },
   {
@@ -1044,7 +1044,7 @@
     "call": "Perekop",
     "key": "Perekop",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:268"
+      "src/perekop/tabs/dashboard/initController.ts:275"
     ]
   },
   {
@@ -1319,7 +1319,7 @@
     "call": "Services info",
     "key": "Services info",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:262"
+      "src/perekop/tabs/dashboard/initController.ts:269"
     ]
   },
   {
@@ -1412,7 +1412,7 @@
     "call": "System info",
     "key": "System info",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:235"
+      "src/perekop/tabs/dashboard/initController.ts:242"
     ]
   },
   {
@@ -1433,7 +1433,7 @@
     "call": "Test latency",
     "key": "Test latency",
     "places": [
-      "src/perekop/tabs/dashboard/partials/renderSections.ts:94"
+      "src/perekop/tabs/dashboard/partials/renderSections.ts:103"
     ]
   },
   {
@@ -1469,14 +1469,14 @@
     "call": "Traffic",
     "key": "Traffic",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:186"
+      "src/perekop/tabs/dashboard/initController.ts:193"
     ]
   },
   {
     "call": "Traffic Total",
     "key": "Traffic Total",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:209"
+      "src/perekop/tabs/dashboard/initController.ts:216"
     ]
   },
   {
@@ -1518,15 +1518,15 @@
     "call": "Uplink",
     "key": "Uplink",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:191",
-      "src/perekop/tabs/dashboard/initController.ts:215"
+      "src/perekop/tabs/dashboard/initController.ts:198",
+      "src/perekop/tabs/dashboard/initController.ts:222"
     ]
   },
   {
     "call": "Uptime",
     "key": "Uptime",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:246"
+      "src/perekop/tabs/dashboard/initController.ts:253"
     ]
   },
   {
@@ -1683,7 +1683,7 @@
     "call": "Xray",
     "key": "Xray",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:279"
+      "src/perekop/tabs/dashboard/initController.ts:286"
     ]
   },
   {
