@@ -78,6 +78,8 @@ export const styles = `
     border-radius: 4px;
     padding: 10px;
     transition: border 0.2s ease;
+    /* A grid item does not shrink below its content without min-width */
+    min-width: 0;
 }
 
 .pdk_dashboard-page__outbound-grid__item--selectable {
@@ -97,6 +99,17 @@ export const styles = `
     align-items: center;
     justify-content: space-between;
     margin-top: 10px;
+}
+
+.pdk_dashboard-page__outbound-grid__item__auto-name {
+    color: var(--primary-color-medium, gray);
+    font-size: 0.9em;
+    /* A grid item does not shrink below its content without min-width */
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .pdk_dashboard-page__outbound-grid__item__latency--empty {

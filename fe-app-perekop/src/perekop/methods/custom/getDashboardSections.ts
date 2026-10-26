@@ -55,14 +55,23 @@ export async function getDashboardSections(): Promise<IGetDashboardSectionsRespo
               proxyGroup?.selected === code,
             );
           });
+          // The outbound the group uses on its own: the fastest one after
+          // a latency test or the one the balancer strategy picked
+          const autoCode = proxyGroup?.auto ?? '';
+          const autoName = outbounds.find(
+            (outbound) => outbound.code === autoCode,
+          )?.displayName;
           return {
             withTagSelect: true,
             code: name,
             displayName: name,
+            autoOutbound: autoCode,
             outbounds: [
               groupOutbound('', _('Auto'), !proxyGroup?.selected),
               ...outbounds,
-            ],
+            ].map((outbound) =>
+              outbound.code === '' ? { ...outbound, autoName } : outbound,
+            ),
           };
         }
 

@@ -737,14 +737,21 @@ async function getDashboardSections() {
             proxyGroup?.selected === code2
           );
         });
+        const autoCode = proxyGroup?.auto ?? "";
+        const autoName = outbounds.find(
+          (outbound) => outbound.code === autoCode
+        )?.displayName;
         return {
           withTagSelect: true,
           code: name,
           displayName: name,
+          autoOutbound: autoCode,
           outbounds: [
             groupOutbound("", _("Auto"), !proxyGroup?.selected),
             ...outbounds
-          ]
+          ].map(
+            (outbound) => outbound.code === "" ? { ...outbound, autoName } : outbound
+          )
         };
       }
       const code = `${name}-out`;
@@ -1482,6 +1489,13 @@ function renderDefaultState({
       },
       [
         E("b", {}, outbound.displayName),
+        ...outbound.autoName ? [
+          E(
+            "div",
+            { class: "pdk_dashboard-page__outbound-grid__item__auto-name" },
+            outbound.autoName
+          )
+        ] : [],
         E("div", { class: "pdk_dashboard-page__outbound-grid__item__footer" }, [
           E(
             "div",
@@ -1775,7 +1789,8 @@ async function handleTestLatency(section) {
   store.set({ latencyFetching: true });
   const result = await PerekopShellMethods.testGroupDelay(section);
   if (result.success) {
-    store.set({ dashboardLatency: result.data });
+    store.set({ dashboardLatency: result.data.delays ?? {} });
+    await fetchDashboardSections();
   } else {
     logger.error("[DASHBOARD]", "handleTestLatency: failed", result);
     store.set({ dashboardLatency: {} });
@@ -1788,9 +1803,9 @@ function renderSectionsWidget() {
   const latencyFetching = store.get().latencyFetching;
   const container = document.getElementById("dashboard-sections-grid");
   if (!container) return;
-  const withLatency = (outbound) => ({
+  const withLatency = (section) => (outbound) => ({
     ...outbound,
-    latency: outbound.code ? latency[outbound.code] ?? null : null
+    latency: outbound.code ? latency[outbound.code] ?? null : section.autoOutbound ? latency[section.autoOutbound] ?? null : null
   });
   const sectionList = sectionsWidget.loading || sectionsWidget.failed ? [
     renderSections({
@@ -1814,7 +1829,7 @@ function renderSectionsWidget() {
       failed: false,
       section: {
         ...section,
-        outbounds: section.outbounds.map(withLatency)
+        outbounds: section.outbounds.map(withLatency(section))
       },
       onChooseOutbound: handleChooseOutbound,
       onTestLatency: handleTestLatency,
@@ -2045,6 +2060,8 @@ var styles = `
     border-radius: 4px;
     padding: 10px;
     transition: border 0.2s ease;
+    /* A grid item does not shrink below its content without min-width */
+    min-width: 0;
 }
 
 .pdk_dashboard-page__outbound-grid__item--selectable {
@@ -2064,6 +2081,17 @@ var styles = `
     align-items: center;
     justify-content: space-between;
     margin-top: 10px;
+}
+
+.pdk_dashboard-page__outbound-grid__item__auto-name {
+    color: var(--primary-color-medium, gray);
+    font-size: 0.9em;
+    /* A grid item does not shrink below its content without min-width */
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .pdk_dashboard-page__outbound-grid__item__latency--empty {

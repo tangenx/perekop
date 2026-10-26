@@ -42,6 +42,7 @@ export namespace Perekop {
   export interface XrayProxyGroup {
     outbounds: string[];
     selected: string;
+    auto: string;
   }
 
   export type XrayProxies = Record<string, XrayProxyGroup>;
@@ -52,6 +53,7 @@ export namespace Perekop {
     type: string;
     selected: boolean;
     latency?: number | null;
+    autoName?: string;
   }
 
   export interface OutboundGroup {
@@ -59,6 +61,12 @@ export namespace Perekop {
     code: string;
     displayName: string;
     outbounds: Outbound[];
+    autoOutbound?: string;
+  }
+
+  export interface GroupDelayResult {
+    delays: Record<string, number>;
+    applied: string;
   }
 
   export interface ConfigProxyUrlTestSection {

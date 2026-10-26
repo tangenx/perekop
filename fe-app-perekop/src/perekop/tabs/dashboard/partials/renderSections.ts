@@ -57,6 +57,15 @@ export function renderDefaultState({
       },
       [
         E('b', {}, outbound.displayName),
+        ...(outbound.autoName
+          ? [
+              E(
+                'div',
+                { class: 'pdk_dashboard-page__outbound-grid__item__auto-name' },
+                outbound.autoName,
+              ),
+            ]
+          : []),
         E('div', { class: 'pdk_dashboard-page__outbound-grid__item__footer' }, [
           E(
             'div',

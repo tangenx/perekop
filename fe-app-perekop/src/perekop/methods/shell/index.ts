@@ -43,7 +43,7 @@ export const PerekopShellMethods = {
       Perekop.AvailableXrayAPIMethods.GET_RUNTIME_INFO,
     ]),
   testGroupDelay: async (group: string) =>
-    callBaseMethod<Record<string, number>>(
+    callBaseMethod<Perekop.GroupDelayResult>(
       Perekop.AvailableMethods.XRAY_API,
       [Perekop.AvailableXrayAPIMethods.TEST_GROUP_DELAY, group],
       '/usr/bin/perekop',

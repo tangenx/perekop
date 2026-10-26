@@ -122,7 +122,10 @@ async function handleTestLatency(section: string) {
   store.set({ latencyFetching: true });
   const result = await PerekopShellMethods.testGroupDelay(section);
   if (result.success) {
-    store.set({ dashboardLatency: result.data });
+    store.set({ dashboardLatency: result.data.delays ?? {} });
+    // The group is pinned to the fastest measured outbound: the sections
+    // are refetched so the Auto tile shows the server in use
+    await fetchDashboardSections();
   } else {
     logger.error('[DASHBOARD]', 'handleTestLatency: failed', result);
     store.set({ dashboardLatency: {} });
@@ -137,10 +140,16 @@ function renderSectionsWidget() {
   const container = document.getElementById('dashboard-sections-grid');
   if (!container) return;
 
-  const withLatency = (outbound: Perekop.Outbound): Perekop.Outbound => ({
-    ...outbound,
-    latency: outbound.code ? (latency[outbound.code] ?? null) : null,
-  });
+  const withLatency =
+    (section: Perekop.OutboundGroup) =>
+    (outbound: Perekop.Outbound): Perekop.Outbound => ({
+      ...outbound,
+      latency: outbound.code
+        ? (latency[outbound.code] ?? null)
+        : section.autoOutbound
+          ? (latency[section.autoOutbound] ?? null)
+          : null,
+    });
 
   const sectionList =
     sectionsWidget.loading || sectionsWidget.failed
@@ -165,7 +174,7 @@ function renderSectionsWidget() {
             failed: false,
             section: {
               ...section,
-              outbounds: section.outbounds.map(withLatency),
+              outbounds: section.outbounds.map(withLatency(section)),
             },
             onChooseOutbound: handleChooseOutbound,
             onTestLatency: handleTestLatency,

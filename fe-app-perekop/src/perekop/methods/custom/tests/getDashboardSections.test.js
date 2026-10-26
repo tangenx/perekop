@@ -14,11 +14,11 @@ vi.mock('../../shell', () => ({
   PerekopShellMethods: { getXrayProxies: vi.fn() },
 }));
 
-function mockUrlTest(section, outbounds, selected = '') {
+function mockUrlTest(section, outbounds, selected = '', auto = '') {
   getConfigSections.mockResolvedValue([section]);
   PerekopShellMethods.getXrayProxies.mockResolvedValue({
     success: true,
-    data: { main: { outbounds, selected } },
+    data: { main: { outbounds, selected, auto } },
   });
 }
 
@@ -56,5 +56,34 @@ describe('getDashboardSections, Xray groups', () => {
     );
     const result = await getDashboardSections();
     expect(result.data[0].outbounds[1].selected).toBe(true);
+  });
+  it('names the automatic outbound of the group', async () => {
+    mockUrlTest(
+      {
+        '.name': 'main',
+        connection_type: 'proxy',
+        proxy_config_type: 'urltest',
+        urltest_proxy_links: ['socks5://1.1.1.1:80#A', 'socks5://1.1.1.2:80#B'],
+      },
+      ['main-1-out', 'main-2-out'],
+      '',
+      'main-2-out',
+    );
+    const result = await getDashboardSections();
+    expect(result.data[0].outbounds[0].autoName).toBe('B');
+    expect(result.data[0].autoOutbound).toBe('main-2-out');
+  });
+  it('leaves the Auto tile unnamed without an automatic outbound', async () => {
+    mockUrlTest(
+      {
+        '.name': 'main',
+        connection_type: 'proxy',
+        proxy_config_type: 'urltest',
+        urltest_proxy_links: ['socks5://1.1.1.1:80#A'],
+      },
+      ['main-1-out'],
+    );
+    const result = await getDashboardSections();
+    expect(result.data[0].outbounds[0].autoName).toBeUndefined();
   });
 });
