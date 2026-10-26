@@ -1945,17 +1945,26 @@ xray_save_config() {
 }
 
 xray_apply_balancer_overrides() {
-    # Re-apply the manually selected outbounds after a core restart:
+    # Re-apply the pinned outbounds after a core restart:
     # "xray api bo" overrides live in the core memory only
-    local section selector_selected balancer_tag
+    local section selector_selected auto_selected pin balancer_tag
 
     for section in $(uci show perekop 2>/dev/null | grep "^perekop\..*\.type='section'" | cut -d. -f2 | cut -d= -f1 | cut -d"'" -f1); do
         selector_selected="$(uci -q get "perekop.$section.selector_selected")"
-        [ -z "$selector_selected" ] && continue
+        auto_selected="$(uci -q get "perekop.$section.auto_selected")"
+
+        # A manual choice wins over the pin of the last latency test
+        if [ -n "$selector_selected" ]; then
+            pin="$selector_selected"
+        elif [ -n "$auto_selected" ]; then
+            pin="$auto_selected"
+        else
+            continue
+        fi
 
         balancer_tag="$(get_outbound_tag_by_section "$section")"
-        xray api bo -s "$XRAY_API_LISTEN_ADDRESS:$XRAY_API_LISTEN_PORT" -b "$balancer_tag" "$selector_selected" > /dev/null 2>&1 \
-            && log "The $balancer_tag balancer is pinned to $selector_selected" "debug"
+        xray api bo -s "$XRAY_API_LISTEN_ADDRESS:$XRAY_API_LISTEN_PORT" -b "$balancer_tag" "$pin" > /dev/null 2>&1 \
+            && log "The $balancer_tag balancer is pinned to $pin" "debug"
     done
 }
 
@@ -2527,6 +2536,10 @@ check_fakeip() {
 #   xray_api set_group_proxy <group> <proxy_tag|"">
 #   xray_api get_runtime_info
 #   xray_api test_group_delay <group>
+#
+# The response of test_group_delay holds the measured delays per outbound
+# tag and the tag of the outbound that was pinned to the group:
+#   {"delays": {"main-1-out": 120}, "applied": "main-1-out"}
 #######################################
 XRAY_API_URL="$XRAY_API_LISTEN_ADDRESS:$XRAY_API_LISTEN_PORT"
 
@@ -2607,16 +2620,36 @@ xray_api_get_proxies() {
             i=$((i + 1))
         done
 
-        # The override target from the live balancer, "" when automatic
-        local override selected
-        override=$(xray api bi -json -s "$XRAY_API_URL" "$(get_outbound_tag_by_section "$section")" 2> /dev/null |
-            jq -r '.balancer.override.target // ""')
+        # The live balancer state: the pinned outbound and the outbound the
+        # strategy would choose on its own
+        local balancer_state override principle
+        balancer_state=$(xray api bi -json -s "$XRAY_API_URL" "$(get_outbound_tag_by_section "$section")" 2> /dev/null)
+        override=$(echo "$balancer_state" | jq -r '.balancer.override.target // ""' 2> /dev/null)
+        principle=$(echo "$balancer_state" | jq -r '.balancer.principleTarget.tag[0] // ""' 2> /dev/null)
+
+        # A manual choice and the pin of the last latency test are stored
+        # separately: the manual one wins and is never replaced by a test
+        local selected auto_selected auto
         selected="$(uci -q get "perekop.$section.selector_selected")"
-        [ -z "$selected" ] && selected="$override"
+        auto_selected="$(uci -q get "perekop.$section.auto_selected")"
+
+        if [ -n "$auto_selected" ]; then
+            # The group is pinned to the fastest measured outbound
+            auto="$auto_selected"
+        elif [ -n "$selected" ]; then
+            # A manual choice: the group does not pick an outbound on its own
+            auto=""
+        elif [ -n "$override" ]; then
+            # A pin of an earlier version that was not stored in the config
+            selected="$override"
+            auto="$override"
+        else
+            auto="$principle"
+        fi
 
         XRAY_API_PROXIES_RESULT=$(jq -n --argjson cur "$XRAY_API_PROXIES_RESULT" --arg section "$section" \
-            --argjson outbounds "$outbounds_json" --arg selected "$selected" \
-            '$cur + {($section): {"outbounds": $outbounds, "selected": $selected}}')
+            --argjson outbounds "$outbounds_json" --arg selected "$selected" --arg auto "$auto" \
+            '$cur + {($section): {"outbounds": $outbounds, "selected": $selected, "auto": $auto}}')
     }
 
     XRAY_API_PROXIES_RESULT="{}"
@@ -2641,7 +2674,8 @@ xray_api_set_group_proxy() {
         # Remove the override, the balancer strategy takes over again
         if xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" -r > /dev/null 2>&1; then
             uci -q delete "perekop.$group.selector_selected"
-            uci -q commit perekop
+            uci -q delete "perekop.$group.auto_selected"
+            uci commit perekop
             echo "{\"success\":true,\"group\":\"$group\",\"proxy\":\"auto\"}" | jq .
             return 0
         fi
@@ -2655,6 +2689,8 @@ xray_api_set_group_proxy() {
     fi
 
     uci set "perekop.$group.selector_selected=$proxy_tag"
+    # A manual choice replaces the pin of the last latency test
+    uci -q delete "perekop.$group.auto_selected"
     uci commit perekop
 
     echo "{\"success\":true,\"group\":\"$group\",\"proxy\":\"$proxy_tag\"}" | jq .
@@ -2739,6 +2775,10 @@ xray_api_test_group_delay() {
     # mid-loop: a stale override would pin user traffic to one outbound
     local restore_tag result="{}" delay_ms
     restore_tag="$(uci -q get "perekop.$group.selector_selected")"
+    if [ -z "$restore_tag" ]; then
+        # A pin made by a previous latency test is restored the same way
+        restore_tag="$(uci -q get "perekop.$group.auto_selected")"
+    fi
     _xray_api_delay_restore() {
         if [ -n "$restore_tag" ]; then
             xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$restore_tag" > /dev/null 2>&1
@@ -2748,6 +2788,7 @@ xray_api_test_group_delay() {
     }
     trap _xray_api_delay_restore EXIT INT TERM
 
+    local best_tag="" best_delay=0
     for outbound_tag in $tags; do
         delay_ms=0
         if xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$outbound_tag" > /dev/null 2>&1; then
@@ -2759,14 +2800,40 @@ xray_api_test_group_delay() {
             [ -z "$delay_ms" ] && delay_ms=0
         fi
 
+        # The lowest measured delay wins: a dead outbound reports 0 and is
+        # never selected
+        if [ "$delay_ms" -gt 0 ] && { [ -z "$best_tag" ] || [ "$delay_ms" -lt "$best_delay" ]; }; then
+            best_tag="$outbound_tag"
+            best_delay="$delay_ms"
+        fi
+
         result=$(jq -n --argjson cur "$result" --arg tag "$outbound_tag" --argjson ms "$delay_ms" \
             '$cur + {($tag): $ms}')
     done
 
     trap - EXIT INT TERM
-    _xray_api_delay_restore
 
-    echo "$result" | jq .
+    # A URLTest group keeps its own strategy: the fastest measured outbound
+    # is pinned so the group actually uses it. A manually pinned outbound is
+    # the explicit choice of the user and is never replaced. A selector
+    # group is left alone, there "Auto" means that no outbound is pinned
+    local applied=""
+    local manual_selected
+    manual_selected="$(uci -q get "perekop.$group.selector_selected")"
+    if [ "$proxy_config_type" = "urltest" ] && [ -z "$manual_selected" ] && [ -n "$best_tag" ]; then
+        if xray api bo -s "$XRAY_API_URL" -b "$balancer_tag" "$best_tag" > /dev/null 2>&1; then
+            applied="$best_tag"
+            uci set "perekop.$group.auto_selected=$best_tag"
+            uci commit perekop
+            log "The $group group is pinned to $best_tag ($best_delay ms)" "info"
+        else
+            log "Cannot pin the $group group to $best_tag" "warn"
+        fi
+    else
+        _xray_api_delay_restore
+    fi
+
+    echo "$result" | jq --arg applied "$applied" '{delays: ., applied: $applied}'
 }
 
 
