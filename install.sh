@@ -104,11 +104,15 @@ update_config() {
 
 main() {
     check_system
-    xray_core
 
     /usr/sbin/ntpd -q -p 194.190.168.1 -p 216.239.35.0 -p 216.239.35.4 -p 162.159.200.1 -p 162.159.200.123
 
     pkg_list_update || { echo "Packages list update failed"; exit 1; }
+
+    # Ask about the latest Xray before installing perekop, so the user
+    # is not surprised by a stock Xray being installed first
+    xray_core
+    xray_latest
 
     if [ -f "/etc/init.d/perekop" ]; then
         msg "Perekop is already installed. Upgrading..."
@@ -175,7 +179,6 @@ main() {
         fi
     done
 
-    xray_latest
     ru=""
     for f in "$DOWNLOAD_DIR"/luci-i18n-perekop-ru*; do
         if [ -f "$f" ]; then
@@ -253,7 +256,7 @@ check_system() {
                 [ "$major" -eq 0 ] && [ "$minor" -gt 7 ] ||
                 [ "$major" -eq 0 ] && [ "$minor" -eq 7 ] && [ "$patch" -ge 0 ]; then
                 msg "Perekop version >= 0.7.0"
-                break
+                return 0
             else
                 msg "Perekop version < 0.7.0"
                 update_config
@@ -289,11 +292,28 @@ check_system() {
 xray_core() {
     # xray-core is managed by the OpenWrt package manager and is retained.
     if ! pkg_is_installed "^xray-core"; then
-        msg "xray-core package is not installed; perekop will install it as a dependency."
+        msg "xray-core package is not installed; installing it..."
+        pkg_install xray-core 2>/dev/null || pkg_list_update && pkg_install xray-core || {
+            msg "Failed to install xray-core. Aborted."
+            exit 1
+        }
     fi
 }
 
 xray_latest() {
+    # Make sure xray-core is installed first (provides the init script)
+    if ! pkg_is_installed "^xray-core"; then
+        xray_core
+    fi
+
+    local installed_version
+    installed_version=$(xray_get_version)
+    if [ -n "$installed_version" ]; then
+        msg "Installed Xray version: $installed_version (minimum required: $XRAY_REQUIRED_VERSION)"
+    else
+        msg "Xray is not installed. Minimum required version: $XRAY_REQUIRED_VERSION"
+    fi
+
     if [ "$XRAY_LATEST" -eq 0 ]; then
         msg "Install the latest Xray binary from XTLS releases (needed for Hysteria2, Xray >= 26.1.13)? y/n"
         read -r XRAY_ANSWER
