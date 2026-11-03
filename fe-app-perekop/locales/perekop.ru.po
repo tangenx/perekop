@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PEREKOP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 17:00+0300\n"
-"PO-Revision-Date: 2026-10-26 17:00+0300\n"
+"POT-Creation-Date: 2026-11-03 13:31+0300\n"
+"PO-Revision-Date: 2026-11-03 13:31+0300\n"
 "Last-Translator: tangenx\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -52,6 +52,12 @@ msgstr "Блокировать IPv6"
 
 msgid "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client"
 msgstr "Блокировать трафик IPv6 от исходных сетевых интерфейсов. Прокси-движок работает только с IPv4, поэтому IPv6-соединения обходят туннель и раскрывают реальный адрес клиента"
+
+msgid "Block WebRTC"
+msgstr ""
+
+msgid "Block WebRTC STUN traffic from the source interfaces. Browsers leak the real IP through STUN even when the proxy is in use, which lets sites detect the proxy"
+msgstr ""
 
 msgid "Bootsrap DNS"
 msgstr "Bootstrap DNS"

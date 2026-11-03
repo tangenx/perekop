@@ -61,7 +61,6 @@ function createSettingsContent(section, xrayFeatures = []) {
     return validation.message;
   };
 
-
   o = section.option(
     widgets.DeviceSelect,
     "source_network_interfaces",
@@ -127,9 +126,7 @@ function createSettingsContent(section, xrayFeatures = []) {
     }
 
     // Reject lan*
-    if (
-        value.startsWith("lan")
-    ) {
+    if (value.startsWith("lan")) {
       return false;
     }
 
@@ -210,8 +207,6 @@ function createSettingsContent(section, xrayFeatures = []) {
     return true;
   };
 
-
-
   o = section.option(
     form.Flag,
     "disable_quic",
@@ -264,7 +259,11 @@ function createSettingsContent(section, xrayFeatures = []) {
 
     for (const secName in sections) {
       const sec = sections[secName];
-      if (sec[".type"] === "section" && sec['connection_type'] !== 'block' && sec['connection_type'] !== 'exclusion') {
+      if (
+        sec[".type"] === "section" &&
+        sec["connection_type"] !== "block" &&
+        sec["connection_type"] !== "exclusion"
+      ) {
         this.keylist.push(secName);
         this.vallist.push(secName);
       }
@@ -286,7 +285,9 @@ function createSettingsContent(section, xrayFeatures = []) {
     form.ListValue,
     "config_path",
     _("Config File Path"),
-    _("Select path for Xray config file. Change this ONLY if you know what you are doing"),
+    _(
+      "Select path for Xray config file. Change this ONLY if you know what you are doing",
+    ),
   );
   o.value("/etc/xray/config.json", "Flash (/etc/xray/config.json)");
   o.value("/tmp/xray/config.json", "RAM (/tmp/xray/config.json)");
@@ -327,6 +328,18 @@ function createSettingsContent(section, xrayFeatures = []) {
     ),
   );
   o.default = "1";
+  o.rmempty = false;
+
+  o = section.option(
+    form.Flag,
+    "block_webrtc",
+    _("Block WebRTC"),
+    _(
+      "Block WebRTC STUN traffic from the source interfaces. Browsers leak the real IP through STUN even when the proxy is in use, which lets sites detect the proxy",
+    ),
+  );
+  o.default = "1";
+
   o.rmempty = false;
 
   o = section.option(

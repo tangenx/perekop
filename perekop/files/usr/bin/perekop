@@ -366,6 +366,19 @@ create_nft_rules() {
         nft add chain inet "$NFT_TABLE_NAME" forward6 '{ type filter hook forward priority filter; policy accept; }'
         nft add rule inet "$NFT_TABLE_NAME" forward6 iifname "@$NFT_INTERFACE_SET_NAME" meta nfproto ipv6 counter drop
     fi
+
+    local block_webrtc
+    config_get_bool block_webrtc "settings" "block_webrtc" "1"
+    if [ "$block_webrtc" -eq 1 ]; then
+        # WebRTC STUN requests leak the real IP of the client even when
+        # the proxy is in use: the STUN server is not a listed domain, so
+        # its traffic goes direct and the browser learns the address of the
+        # ISP. Dropping STUN traffic from the source interfaces prevents
+        # the leak at the cost of breaking browser-based video calls
+        log "Block WebRTC STUN traffic from the source interfaces"
+        nft add chain inet "$NFT_TABLE_NAME" webrtc_block '{ type filter hook forward priority -200; policy accept; }'
+        nft add rule inet "$NFT_TABLE_NAME" webrtc_block iifname "@$NFT_INTERFACE_SET_NAME" udp dport { 3478, 19302, 19303, 19304, 19305, 19306, 19307, 19308, 19309 } counter drop
+    fi
 }
 
 backup_dnsmasq_config_option() {

@@ -3,28 +3,28 @@
     "call": "✔ Enabled",
     "key": "✔ Enabled",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:277"
+      "src/perekop/tabs/dashboard/initController.ts:279"
     ]
   },
   {
     "call": "✔ Running",
     "key": "✔ Running",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:287"
+      "src/perekop/tabs/dashboard/initController.ts:289"
     ]
   },
   {
     "call": "✘ Disabled",
     "key": "✘ Disabled",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:278"
+      "src/perekop/tabs/dashboard/initController.ts:280"
     ]
   },
   {
     "call": "✘ Stopped",
     "key": "✘ Stopped",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:287"
+      "src/perekop/tabs/dashboard/initController.ts:289"
     ]
   },
   {
@@ -73,14 +73,28 @@
     "call": "Block IPv6",
     "key": "Block IPv6",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:324"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325"
     ]
   },
   {
     "call": "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client",
     "key": "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:326"
+    ]
+  },
+  {
+    "call": "Block WebRTC",
+    "key": "Block WebRTC",
+    "places": [
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:336"
+    ]
+  },
+  {
+    "call": "Block WebRTC STUN traffic from the source interfaces. Browsers leak the real IP through STUN even when the proxy is in use, which lets sites detect the proxy",
+    "key": "Block WebRTC STUN traffic from the source interfaces. Browsers leak the real IP through STUN even when the proxy is in use, which lets sites detect the proxy",
+    "places": [
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:337"
     ]
   },
   {
@@ -179,7 +193,7 @@
     "call": "Config File Path",
     "key": "Config File Path",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:288"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:287"
     ]
   },
   {
@@ -214,7 +228,7 @@
     "call": "Connections",
     "key": "Connections",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:248"
+      "src/perekop/tabs/dashboard/initController.ts:250"
     ]
   },
   {
@@ -249,14 +263,14 @@
     "call": "Delay in milliseconds before reloading perekop after interface UP",
     "key": "Delay in milliseconds before reloading perekop after interface UP",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:201"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:198"
     ]
   },
   {
     "call": "Delay value cannot be empty",
     "key": "Delay value cannot be empty",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:208"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:205"
     ]
   },
   {
@@ -284,14 +298,14 @@
     "call": "Disable QUIC",
     "key": "Disable QUIC",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:218"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:213"
     ]
   },
   {
     "call": "Disable the QUIC protocol to improve compatibility or fix issues with video streaming",
     "key": "Disable the QUIC protocol to improve compatibility or fix issues with video streaming",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:219"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:214"
     ]
   },
   {
@@ -365,15 +379,15 @@
     "call": "Dont Touch My DHCP!",
     "key": "Dont Touch My DHCP!",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:279"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:278"
     ]
   },
   {
     "call": "Downlink",
     "key": "Downlink",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:200",
-      "src/perekop/tabs/dashboard/initController.ts:226"
+      "src/perekop/tabs/dashboard/initController.ts:202",
+      "src/perekop/tabs/dashboard/initController.ts:228"
     ]
   },
   {
@@ -387,22 +401,22 @@
     "call": "Download Lists via Proxy/VPN",
     "key": "Download Lists via Proxy/VPN",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:241"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:236"
     ]
   },
   {
     "call": "Download Lists via specific proxy section",
     "key": "Download Lists via specific proxy section",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:250"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:245"
     ]
   },
   {
     "call": "Downloading all lists via specific Proxy/VPN",
     "key": "Downloading all lists via specific Proxy/VPN",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:242",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:251"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:237",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:246"
     ]
   },
   {
@@ -438,7 +452,7 @@
     "call": "Enable Output Network Interface",
     "key": "Enable Output Network Interface",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:105"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:104"
     ]
   },
   {
@@ -508,14 +522,14 @@
     "call": "Exclude NTP",
     "key": "Exclude NTP",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:313"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:314"
     ]
   },
   {
     "call": "Exclude NTP protocol traffic from the tunnel to prevent it from being routed through the proxy or VPN",
     "key": "Exclude NTP protocol traffic from the tunnel to prevent it from being routed through the proxy or VPN",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:314"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:315"
     ]
   },
   {
@@ -566,21 +580,21 @@
     "call": "Interface Monitoring",
     "key": "Interface Monitoring",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:168"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:165"
     ]
   },
   {
     "call": "Interface Monitoring Delay",
     "key": "Interface Monitoring Delay",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:200"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:197"
     ]
   },
   {
     "call": "Interface monitoring for Bad WAN",
     "key": "Interface monitoring for Bad WAN",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:169"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:166"
     ]
   },
   {
@@ -911,7 +925,7 @@
     "call": "List Update Frequency",
     "key": "List Update Frequency",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:229"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:224"
     ]
   },
   {
@@ -932,7 +946,7 @@
     "call": "Log Level",
     "key": "Log Level",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:299"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:300"
     ]
   },
   {
@@ -946,14 +960,14 @@
     "call": "Memory",
     "key": "Memory",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:251"
+      "src/perekop/tabs/dashboard/initController.ts:253"
     ]
   },
   {
     "call": "min",
     "key": "min",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:254"
+      "src/perekop/tabs/dashboard/initController.ts:256"
     ]
   },
   {
@@ -967,7 +981,7 @@
     "call": "Monitored Interfaces",
     "key": "Monitored Interfaces",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:177"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:174"
     ]
   },
   {
@@ -1030,7 +1044,7 @@
     "call": "Output Network Interface",
     "key": "Output Network Interface",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:114"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:113"
     ]
   },
   {
@@ -1044,7 +1058,7 @@
     "call": "Perekop",
     "key": "Perekop",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:275"
+      "src/perekop/tabs/dashboard/initController.ts:277"
     ]
   },
   {
@@ -1058,7 +1072,7 @@
     "call": "Perekop will not modify your DHCP configuration",
     "key": "Perekop will not modify your DHCP configuration",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:280"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:279"
     ]
   },
   {
@@ -1128,7 +1142,7 @@
     "call": "Routing Excluded IPs",
     "key": "Routing Excluded IPs",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:335"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:348"
     ]
   },
   {
@@ -1220,7 +1234,7 @@
     "call": "Select how often the domain or subnet lists are updated automatically",
     "key": "Select how often the domain or subnet lists are updated automatically",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:230"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:225"
     ]
   },
   {
@@ -1249,7 +1263,7 @@
     "call": "Select path for Xray config file. Change this ONLY if you know what you are doing",
     "key": "Select path for Xray config file. Change this ONLY if you know what you are doing",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:289"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:288"
     ]
   },
   {
@@ -1277,28 +1291,28 @@
     "call": "Select the log level for Xray",
     "key": "Select the log level for Xray",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:300"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:301"
     ]
   },
   {
     "call": "Select the network interface from which the traffic will originate",
     "key": "Select the network interface from which the traffic will originate",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:69"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:68"
     ]
   },
   {
     "call": "Select the network interface to which the traffic will originate",
     "key": "Select the network interface to which the traffic will originate",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:115"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:114"
     ]
   },
   {
     "call": "Select the WAN interfaces to be monitored",
     "key": "Select the WAN interfaces to be monitored",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:178"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:175"
     ]
   },
   {
@@ -1319,7 +1333,7 @@
     "call": "Services info",
     "key": "Services info",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:269"
+      "src/perekop/tabs/dashboard/initController.ts:271"
     ]
   },
   {
@@ -1348,14 +1362,14 @@
     "call": "Source Network Interface",
     "key": "Source Network Interface",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:68"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:67"
     ]
   },
   {
     "call": "Specify a local IP address to be excluded from routing",
     "key": "Specify a local IP address to be excluded from routing",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:336"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:349"
     ]
   },
   {
@@ -1412,7 +1426,7 @@
     "call": "System info",
     "key": "System info",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:242"
+      "src/perekop/tabs/dashboard/initController.ts:244"
     ]
   },
   {
@@ -1469,14 +1483,14 @@
     "call": "Traffic",
     "key": "Traffic",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:193"
+      "src/perekop/tabs/dashboard/initController.ts:195"
     ]
   },
   {
     "call": "Traffic Total",
     "key": "Traffic Total",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:216"
+      "src/perekop/tabs/dashboard/initController.ts:218"
     ]
   },
   {
@@ -1518,15 +1532,15 @@
     "call": "Uplink",
     "key": "Uplink",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:198",
-      "src/perekop/tabs/dashboard/initController.ts:222"
+      "src/perekop/tabs/dashboard/initController.ts:200",
+      "src/perekop/tabs/dashboard/initController.ts:224"
     ]
   },
   {
     "call": "Uptime",
     "key": "Uptime",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:253"
+      "src/perekop/tabs/dashboard/initController.ts:255"
     ]
   },
   {
@@ -1683,7 +1697,7 @@
     "call": "Xray",
     "key": "Xray",
     "places": [
-      "src/perekop/tabs/dashboard/initController.ts:286"
+      "src/perekop/tabs/dashboard/initController.ts:288"
     ]
   },
   {
@@ -1732,7 +1746,7 @@
     "call": "You can select Output Network Interface, by default autodetect",
     "key": "You can select Output Network Interface, by default autodetect",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:106"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:105"
     ]
   }
 ]

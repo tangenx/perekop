@@ -16,6 +16,7 @@ config settings 'settings'
         option log_level 'warning'
         option exclude_ntp '0'
         option block_ipv6 '1'
+        option block_webrtc '1'
         option shutdown_correctly '0'
         #list routing_excluded_ips '192.168.1.3'
 

@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PEREKOP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 14:00+0300\n"
-"PO-Revision-Date: 2026-10-26 14:00+0300\n"
+"POT-Creation-Date: 2026-11-03 10:31+0300\n"
+"PO-Revision-Date: 2026-11-03 10:31+0300\n"
 "Last-Translator: tangenx <me@tangenx.dev>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -16,19 +16,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/perekop/tabs/dashboard/initController.ts:277
+#: src/perekop/tabs/dashboard/initController.ts:279
 msgid "✔ Enabled"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:287
+#: src/perekop/tabs/dashboard/initController.ts:289
 msgid "✔ Running"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:278
+#: src/perekop/tabs/dashboard/initController.ts:280
 msgid "✘ Disabled"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:287
+#: src/perekop/tabs/dashboard/initController.ts:289
 msgid "✘ Stopped"
 msgstr ""
 
@@ -56,12 +56,20 @@ msgstr ""
 msgid "Available actions"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:324
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325
 msgid "Block IPv6"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:326
 msgid "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client"
+msgstr ""
+
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:336
+msgid "Block WebRTC"
+msgstr ""
+
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:337
+msgid "Block WebRTC STUN traffic from the source interfaces. Browsers leak the real IP through STUN even when the proxy is in use, which lets sites detect the proxy"
 msgstr ""
 
 #: src/perekop/tabs/diagnostic/checks/runDnsCheck.ts:63
@@ -120,7 +128,7 @@ msgstr ""
 msgid "Community Lists"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:288
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:287
 msgid "Config File Path"
 msgstr ""
 
@@ -140,7 +148,7 @@ msgstr ""
 msgid "Connection URL"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:248
+#: src/perekop/tabs/dashboard/initController.ts:250
 msgid "Connections"
 msgstr ""
 
@@ -160,11 +168,11 @@ msgstr ""
 msgid "Dashboard currently unavailable"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:201
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:198
 msgid "Delay in milliseconds before reloading perekop after interface UP"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:208
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:205
 msgid "Delay value cannot be empty"
 msgstr ""
 
@@ -180,11 +188,11 @@ msgstr ""
 msgid "Disable autostart"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:218
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:213
 msgid "Disable QUIC"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:219
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:214
 msgid "Disable the QUIC protocol to improve compatibility or fix issues with video streaming"
 msgstr ""
 
@@ -228,12 +236,12 @@ msgstr ""
 msgid "Domain Resolver"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:279
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:278
 msgid "Dont Touch My DHCP!"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:200
-#: src/perekop/tabs/dashboard/initController.ts:226
+#: src/perekop/tabs/dashboard/initController.ts:202
+#: src/perekop/tabs/dashboard/initController.ts:228
 msgid "Downlink"
 msgstr ""
 
@@ -241,16 +249,16 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:241
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:236
 msgid "Download Lists via Proxy/VPN"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:250
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:245
 msgid "Download Lists via specific proxy section"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:242
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:251
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:237
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:246
 msgid "Downloading all lists via specific Proxy/VPN"
 msgstr ""
 
@@ -271,7 +279,7 @@ msgstr ""
 msgid "Enable Mixed Proxy"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:105
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:104
 msgid "Enable Output Network Interface"
 msgstr ""
 
@@ -311,11 +319,11 @@ msgstr ""
 msgid "Every 5 minutes"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:313
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:314
 msgid "Exclude NTP"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:314
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:315
 msgid "Exclude NTP protocol traffic from the tunnel to prevent it from being routed through the proxy or VPN"
 msgstr ""
 
@@ -345,15 +353,15 @@ msgstr ""
 msgid "HTTP error"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:168
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:165
 msgid "Interface Monitoring"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:200
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:197
 msgid "Interface Monitoring Delay"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:169
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:166
 msgid "Interface monitoring for Bad WAN"
 msgstr ""
 
@@ -543,7 +551,7 @@ msgstr ""
 msgid "Latest"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:229
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:224
 msgid "List Update Frequency"
 msgstr ""
 
@@ -555,7 +563,7 @@ msgstr ""
 msgid "Local Subnet Lists"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:299
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:300
 msgid "Log Level"
 msgstr ""
 
@@ -563,11 +571,11 @@ msgstr ""
 msgid "Main DNS"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:251
+#: src/perekop/tabs/dashboard/initController.ts:253
 msgid "Memory"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:254
+#: src/perekop/tabs/dashboard/initController.ts:256
 msgid "min"
 msgstr ""
 
@@ -575,7 +583,7 @@ msgstr ""
 msgid "Mixed Proxy Port"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:177
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:174
 msgid "Monitored Interfaces"
 msgstr ""
 
@@ -611,7 +619,7 @@ msgstr ""
 msgid "Outdated"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:114
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:113
 msgid "Output Network Interface"
 msgstr ""
 
@@ -619,7 +627,7 @@ msgstr ""
 msgid "Path cannot be empty"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:275
+#: src/perekop/tabs/dashboard/initController.ts:277
 msgid "Perekop"
 msgstr ""
 
@@ -627,7 +635,7 @@ msgstr ""
 msgid "Perekop Settings"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:280
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:279
 msgid "Perekop will not modify your DHCP configuration"
 msgstr ""
 
@@ -667,7 +675,7 @@ msgstr ""
 msgid "Router DNS is routed through xray"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:335
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:348
 msgid "Routing Excluded IPs"
 msgstr ""
 
@@ -720,7 +728,7 @@ msgstr ""
 msgid "Select DNS protocol to use"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:230
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:225
 msgid "Select how often the domain or subnet lists are updated automatically"
 msgstr ""
 
@@ -737,7 +745,7 @@ msgstr ""
 msgid "Select or enter DNS server address"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:289
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:288
 msgid "Select path for Xray config file. Change this ONLY if you know what you are doing"
 msgstr ""
 
@@ -753,19 +761,19 @@ msgstr ""
 msgid "Select the list type for adding custom subnets"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:300
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:301
 msgid "Select the log level for Xray"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:69
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:68
 msgid "Select the network interface from which the traffic will originate"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:115
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:114
 msgid "Select the network interface to which the traffic will originate"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:178
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:175
 msgid "Select the WAN interfaces to be monitored"
 msgstr ""
 
@@ -777,7 +785,7 @@ msgstr ""
 msgid "Selector Proxy Links"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:269
+#: src/perekop/tabs/dashboard/initController.ts:271
 msgid "Services info"
 msgstr ""
 
@@ -794,11 +802,11 @@ msgstr ""
 msgid "SOCKS on this port, HTTP on the next port"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:68
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:67
 msgid "Source Network Interface"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:336
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:349
 msgid "Specify a local IP address to be excluded from routing"
 msgstr ""
 
@@ -831,7 +839,7 @@ msgstr ""
 msgid "Successfully copied!"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:242
+#: src/perekop/tabs/dashboard/initController.ts:244
 msgid "System info"
 msgstr ""
 
@@ -864,11 +872,11 @@ msgstr ""
 msgid "The URL used to test server connectivity"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:193
+#: src/perekop/tabs/dashboard/initController.ts:195
 msgid "Traffic"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:216
+#: src/perekop/tabs/dashboard/initController.ts:218
 msgid "Traffic Total"
 msgstr ""
 
@@ -895,12 +903,12 @@ msgstr ""
 msgid "Unknown error"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:198
-#: src/perekop/tabs/dashboard/initController.ts:222
+#: src/perekop/tabs/dashboard/initController.ts:200
+#: src/perekop/tabs/dashboard/initController.ts:224
 msgid "Uplink"
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:253
+#: src/perekop/tabs/dashboard/initController.ts:255
 msgid "Uptime"
 msgstr ""
 
@@ -997,7 +1005,7 @@ msgstr ""
 msgid "Warning: Russia inside can only be used with %s. %s already in Russia inside and have been removed from selection."
 msgstr ""
 
-#: src/perekop/tabs/dashboard/initController.ts:286
+#: src/perekop/tabs/dashboard/initController.ts:288
 msgid "Xray"
 msgstr ""
 
@@ -1025,6 +1033,6 @@ msgstr ""
 msgid "Xray version is compatible (newer than 25.1.30)"
 msgstr ""
 
-#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:106
+#: ../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:105
 msgid "You can select Output Network Interface, by default autodetect"
 msgstr ""
