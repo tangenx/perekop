@@ -333,6 +333,14 @@ create_nft_rules() {
     nft add chain inet "$NFT_TABLE_NAME" proxy '{ type filter hook prerouting priority -100; policy accept; }'
 
     nft add rule inet "$NFT_TABLE_NAME" mangle ct status dnat return
+
+    local disable_quic
+    config_get_bool disable_quic "settings" "disable_quic" 0
+    if [ "$disable_quic" -eq 1 ]; then
+        log "QUIC traffic blocked: forcing TCP"
+        nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" meta l4proto udp udp dport 443 drop
+    fi
+
     nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
     nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
     nft add rule inet "$NFT_TABLE_NAME" mangle iifname "@$NFT_INTERFACE_SET_NAME" ip daddr "$XRAY_FAKEIP_INET4_RANGE" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
@@ -343,8 +351,10 @@ create_nft_rules() {
 
     nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "@$NFT_LOCALV4_SET_NAME" return
     nft add rule inet "$NFT_TABLE_NAME" mangle_output meta mark "$NFT_OUTBOUND_MARK" counter return
-    nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
-    nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "@$NFT_COMMON_SET_NAME" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
+    # Only fake IPs (listed domains) are intercepted for router-originated
+    # traffic: community subnets are left to go direct, so non-listed sites
+    # behind a community IP range (e.g. Cloudflare) are not pulled into the
+    # core and do not risk being blackholed by the QUIC guard
     nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "$XRAY_FAKEIP_INET4_RANGE" meta l4proto tcp meta mark set "$NFT_FAKEIP_MARK" counter
     nft add rule inet "$NFT_TABLE_NAME" mangle_output ip daddr "$XRAY_FAKEIP_INET4_RANGE" meta l4proto udp meta mark set "$NFT_FAKEIP_MARK" counter
 
@@ -1759,14 +1769,6 @@ xray_configure_route() {
     config=$(xray_cm_add_route_rule "$config" "$(jq -n \
         --arg tag "$XRAY_DNS_TAG" --arg outbound "$XRAY_DIRECT_OUTBOUND_TAG" \
         '{"inboundTag": [$tag], "outboundTag": $outbound}')")
-
-    local disable_quic
-    config_get_bool disable_quic "settings" "disable_quic" 0
-    if [ "$disable_quic" -eq 1 ]; then
-        config=$(xray_cm_add_route_rule "$config" "$(jq -n \
-            --arg tag "$XRAY_TPROXY_INBOUND_TAG" --arg outbound "$XRAY_BLACKHOLE_OUTBOUND_TAG" \
-            '{"inboundTag": [$tag], "network": "udp", "port": 443, "outboundTag": $outbound}')")
-    fi
 
     # FakeIP check service: dnsmasq pins the domain to a fixed fake IP, the
     # redirect outbound dials the real service on port 8443
