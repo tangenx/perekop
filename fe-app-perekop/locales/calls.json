@@ -38,14 +38,14 @@
     "call": "At least one valid domain must be specified. Comments-only content is not allowed.",
     "key": "At least one valid domain must be specified. Comments-only content is not allowed.",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:492"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:518"
     ]
   },
   {
     "call": "At least one valid subnet or IP must be specified. Comments-only content is not allowed.",
     "key": "At least one valid subnet or IP must be specified. Comments-only content is not allowed.",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:540"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:566"
     ]
   },
   {
@@ -73,28 +73,28 @@
     "call": "Block IPv6",
     "key": "Block IPv6",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:335"
     ]
   },
   {
     "call": "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client",
     "key": "Block IPv6 traffic from the source interfaces. The proxy engine handles IPv4 only, so IPv6 connections would bypass the tunnel and expose the real address of the client",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:326"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:336"
     ]
   },
   {
     "call": "Block WebRTC",
     "key": "Block WebRTC",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:336"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:346"
     ]
   },
   {
     "call": "Block WebRTC STUN traffic from the source interfaces. Browsers leak the real IP through STUN even when the proxy is in use, which lets sites detect the proxy",
     "key": "Block WebRTC STUN traffic from the source interfaces. Browsers leak the real IP through STUN even when the proxy is in use, which lets sites detect the proxy",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:337"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:347"
     ]
   },
   {
@@ -185,8 +185,8 @@
     "call": "Community Lists",
     "key": "Community Lists",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:275",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:363"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:301",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:389"
     ]
   },
   {
@@ -207,21 +207,21 @@
     "call": "Configuration Type",
     "key": "Configuration Type",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:23"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:40"
     ]
   },
   {
     "call": "Connection Type",
     "key": "Connection Type",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:12"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:29"
     ]
   },
   {
     "call": "Connection URL",
     "key": "Connection URL",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:26"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:43"
     ]
   },
   {
@@ -312,8 +312,8 @@
     "call": "Disabled",
     "key": "Disabled",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:390",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:425"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:416",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:451"
     ]
   },
   {
@@ -327,7 +327,7 @@
     "call": "DNS over HTTPS (DoH)",
     "key": "DNS over HTTPS (DoH)",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:243",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:269",
       "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:15"
     ]
   },
@@ -335,14 +335,14 @@
     "call": "DNS over TLS (DoT)",
     "key": "DNS over TLS (DoT)",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:244"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:270"
     ]
   },
   {
     "call": "DNS Protocol Type",
     "key": "DNS Protocol Type",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:240",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:266",
       "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:12"
     ]
   },
@@ -350,7 +350,7 @@
     "call": "DNS Server",
     "key": "DNS Server",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:253",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:279",
       "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:23"
     ]
   },
@@ -372,7 +372,7 @@
     "call": "Domain Resolver",
     "key": "Domain Resolver",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:230"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:256"
     ]
   },
   {
@@ -423,8 +423,8 @@
     "call": "Dynamic List",
     "key": "Dynamic List",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:391",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:426"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:417",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:452"
     ]
   },
   {
@@ -438,14 +438,14 @@
     "call": "Enable built-in DNS resolver for domains handled by this section",
     "key": "Enable built-in DNS resolver for domains handled by this section",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:231"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:257"
     ]
   },
   {
     "call": "Enable Mixed Proxy",
     "key": "Enable Mixed Proxy",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:680"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:706"
     ]
   },
   {
@@ -459,63 +459,70 @@
     "call": "Enable the mixed proxy, allowing this section to route traffic through both HTTP and SOCKS proxies",
     "key": "Enable the mixed proxy, allowing this section to route traffic through both HTTP and SOCKS proxies",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:681"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:707"
+    ]
+  },
+  {
+    "call": "Enable Traffic Statistics",
+    "key": "Enable Traffic Statistics",
+    "places": [
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:324"
     ]
   },
   {
     "call": "Enter complete outbound configuration in JSON format",
     "key": "Enter complete outbound configuration in JSON format",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:66"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:86"
     ]
   },
   {
     "call": "Enter domain names separated by commas, spaces, or newlines. You can add comments using //",
     "key": "Enter domain names separated by commas, spaces, or newlines. You can add comments using //",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:469"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:495"
     ]
   },
   {
     "call": "Enter domain names without protocols, e.g. example.com or sub.example.com",
     "key": "Enter domain names without protocols, e.g. example.com or sub.example.com",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:438"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:464"
     ]
   },
   {
     "call": "Enter subnets in CIDR notation or single IP addresses",
     "key": "Enter subnets in CIDR notation or single IP addresses",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:403"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:429"
     ]
   },
   {
     "call": "Every 1 minute",
     "key": "Every 1 minute",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:138"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:164"
     ]
   },
   {
     "call": "Every 3 minutes",
     "key": "Every 3 minutes",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:139"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:165"
     ]
   },
   {
     "call": "Every 30 seconds",
     "key": "Every 30 seconds",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:137"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:163"
     ]
   },
   {
     "call": "Every 5 minutes",
     "key": "Every 5 minutes",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:140"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:166"
     ]
   },
   {
@@ -552,7 +559,7 @@
     "call": "Fully Routed IPs",
     "key": "Fully Routed IPs",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:653"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:679"
     ]
   },
   {
@@ -574,6 +581,13 @@
     "key": "HTTP error",
     "places": [
       "src/perekop/api.ts:27"
+    ]
+  },
+  {
+    "call": "Hysteria2 requires Xray 26.1.13 or newer. Update Xray via install.sh --xray-latest or remove the hysteria2 link",
+    "key": "Hysteria2 requires Xray 26.1.13 or newer. Update Xray via install.sh --xray-latest or remove the hysteria2 link",
+    "places": [
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:18"
     ]
   },
   {
@@ -932,14 +946,14 @@
     "call": "Local Domain Lists",
     "key": "Local Domain Lists",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:561"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:587"
     ]
   },
   {
     "call": "Local Subnet Lists",
     "key": "Local Subnet Lists",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:584"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:610"
     ]
   },
   {
@@ -974,7 +988,7 @@
     "call": "Mixed Proxy Port",
     "key": "Mixed Proxy Port",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:693"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:719"
     ]
   },
   {
@@ -988,7 +1002,7 @@
     "call": "Network Interface",
     "key": "Network Interface",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:184"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:210"
     ]
   },
   {
@@ -1023,14 +1037,14 @@
     "call": "Outbound Config",
     "key": "Outbound Config",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:29"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:46"
     ]
   },
   {
     "call": "Outbound Configuration",
     "key": "Outbound Configuration",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:65"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:85"
     ]
   },
   {
@@ -1079,7 +1093,7 @@
     "call": "Proxy Configuration URL",
     "key": "Proxy Configuration URL",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:36"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:53"
     ]
   },
   {
@@ -1100,21 +1114,21 @@
     "call": "Regional options cannot be used together",
     "key": "Regional options cannot be used together",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:309"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:335"
     ]
   },
   {
     "call": "Remote Domain Lists",
     "key": "Remote Domain Lists",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:607"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:633"
     ]
   },
   {
     "call": "Remote Subnet Lists",
     "key": "Remote Subnet Lists",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:630"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:656"
     ]
   },
   {
@@ -1142,7 +1156,7 @@
     "call": "Routing Excluded IPs",
     "key": "Routing Excluded IPs",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:348"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:358"
     ]
   },
   {
@@ -1198,7 +1212,7 @@
     "call": "Russia inside restrictions",
     "key": "Russia inside restrictions",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:328"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:354"
     ]
   },
   {
@@ -1212,15 +1226,15 @@
     "call": "Select a predefined list for routing",
     "key": "Select a predefined list for routing",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:276",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:364"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:302",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:390"
     ]
   },
   {
     "call": "Select between VPN and Proxy connection methods for traffic routing",
     "key": "Select between VPN and Proxy connection methods for traffic routing",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:13"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:30"
     ]
   },
   {
@@ -1241,21 +1255,21 @@
     "call": "Select how to configure the proxy",
     "key": "Select how to configure the proxy",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:24"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:41"
     ]
   },
   {
     "call": "Select network interface for VPN connection",
     "key": "Select network interface for VPN connection",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:185"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:211"
     ]
   },
   {
     "call": "Select or enter DNS server address",
     "key": "Select or enter DNS server address",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:254",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:280",
       "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:24"
     ]
   },
@@ -1270,21 +1284,21 @@
     "call": "Select the DNS protocol type for the domain resolver",
     "key": "Select the DNS protocol type for the domain resolver",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:241"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:267"
     ]
   },
   {
     "call": "Select the list type for adding custom domains",
     "key": "Select the list type for adding custom domains",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:423"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:449"
     ]
   },
   {
     "call": "Select the list type for adding custom subnets",
     "key": "Select the list type for adding custom subnets",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:388"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:414"
     ]
   },
   {
@@ -1319,14 +1333,14 @@
     "call": "Selector",
     "key": "Selector",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:27"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:44"
     ]
   },
   {
     "call": "Selector Proxy Links",
     "key": "Selector Proxy Links",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:88"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:108"
     ]
   },
   {
@@ -1355,7 +1369,7 @@
     "call": "SOCKS on this port, HTTP on the next port",
     "key": "SOCKS on this port, HTTP on the next port",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:694"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:720"
     ]
   },
   {
@@ -1369,36 +1383,36 @@
     "call": "Specify a local IP address to be excluded from routing",
     "key": "Specify a local IP address to be excluded from routing",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:349"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:359"
     ]
   },
   {
     "call": "Specify local IP addresses or subnets whose traffic will always be routed through the configured route",
     "key": "Specify local IP addresses or subnets whose traffic will always be routed through the configured route",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:654"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:680"
     ]
   },
   {
     "call": "Specify remote URLs to download and use domain lists",
     "key": "Specify remote URLs to download and use domain lists",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:608"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:634"
     ]
   },
   {
     "call": "Specify remote URLs to download and use subnet lists",
     "key": "Specify remote URLs to download and use subnet lists",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:631"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:657"
     ]
   },
   {
     "call": "Specify the path to the list file located on the router filesystem",
     "key": "Specify the path to the list file located on the router filesystem",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:562",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:585"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:588",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:611"
     ]
   },
   {
@@ -1454,8 +1468,8 @@
     "call": "Text List",
     "key": "Text List",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:392",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:427"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:418",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:453"
     ]
   },
   {
@@ -1469,14 +1483,21 @@
     "call": "The interval between connectivity tests",
     "key": "The interval between connectivity tests",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:135"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:161"
     ]
   },
   {
     "call": "The URL used to test server connectivity",
     "key": "The URL used to test server connectivity",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:148"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:174"
+    ]
+  },
+  {
+    "call": "Track traffic for the dashboard. Disabling this reduces memory usage on low-memory devices",
+    "key": "Track traffic for the dashboard. Disabling this reduces memory usage on low-memory devices",
+    "places": [
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:325"
     ]
   },
   {
@@ -1504,7 +1525,7 @@
     "call": "UDP (Unprotected DNS)",
     "key": "UDP (Unprotected DNS)",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:245",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:271",
       "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/settings.js:16"
     ]
   },
@@ -1561,70 +1582,70 @@
     "call": "URLTest",
     "key": "URLTest",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:28"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:45"
     ]
   },
   {
     "call": "URLTest Check Interval",
     "key": "URLTest Check Interval",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:134"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:160"
     ]
   },
   {
     "call": "URLTest Proxy Links",
     "key": "URLTest Proxy Links",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:111"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:134"
     ]
   },
   {
     "call": "URLTest Testing URL",
     "key": "URLTest Testing URL",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:147"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:173"
     ]
   },
   {
     "call": "User Domain List Type",
     "key": "User Domain List Type",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:422"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:448"
     ]
   },
   {
     "call": "User Domains",
     "key": "User Domains",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:437"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:463"
     ]
   },
   {
     "call": "User Domains List",
     "key": "User Domains List",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:468"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:494"
     ]
   },
   {
     "call": "User Subnet List Type",
     "key": "User Subnet List Type",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:387"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:413"
     ]
   },
   {
     "call": "User Subnets",
     "key": "User Subnets",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:402"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:428"
     ]
   },
   {
     "call": "User Subnets List",
     "key": "User Subnets List",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:515"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:541"
     ]
   },
   {
@@ -1651,8 +1672,8 @@
     "call": "Validation errors:",
     "key": "Validation errors:",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:506",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:552"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:532",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:578"
     ]
   },
   {
@@ -1674,23 +1695,23 @@
     "call": "vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links",
     "key": "vless://, ss://, trojan://, socks4/5://, hy2/hysteria2:// links",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:37",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:89",
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:112"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:54",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:109",
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:135"
     ]
   },
   {
     "call": "Warning: %s cannot be used together with %s. Previous selections have been removed.",
     "key": "Warning: %s cannot be used together with %s. Previous selections have been removed.",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:311"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:337"
     ]
   },
   {
     "call": "Warning: Russia inside can only be used with %s. %s already in Russia inside and have been removed from selection.",
     "key": "Warning: Russia inside can only be used with %s. %s already in Russia inside and have been removed from selection.",
     "places": [
-      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:330"
+      "../luci-app-perekop/htdocs/luci-static/resources/view/perekop/section.js:356"
     ]
   },
   {

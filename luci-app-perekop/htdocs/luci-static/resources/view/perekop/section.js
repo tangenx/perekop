@@ -6,6 +6,23 @@
 "require view.perekop.main as main";
 
 function createSectionContent(section, xrayFeatures = []) {
+  function checkHysteriaSupport(value) {
+    if (!value) return null;
+    const lines = String(value).split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (
+        (trimmed.startsWith("hysteria2://") || trimmed.startsWith("hy2://")) &&
+        !xrayFeatures.includes("proxy.hysteria2")
+      ) {
+        return _(
+          "Hysteria2 requires Xray 26.1.13 or newer. Update Xray via install.sh --xray-latest or remove the hysteria2 link",
+        );
+      }
+    }
+    return null;
+  }
+
   let o = section.option(
     form.ListValue,
     "connection_type",
@@ -49,6 +66,9 @@ function createSectionContent(section, xrayFeatures = []) {
     if (!value || value.length === 0) {
       return true;
     }
+
+    const hy2Error = checkHysteriaSupport(value);
+    if (hy2Error) return hy2Error;
 
     const validation = main.validateProxyUrl(value);
 
@@ -96,6 +116,9 @@ function createSectionContent(section, xrayFeatures = []) {
       return true;
     }
 
+    const hy2Error = checkHysteriaSupport(value);
+    if (hy2Error) return hy2Error;
+
     const validation = main.validateProxyUrl(value);
 
     if (validation.valid) {
@@ -118,6 +141,9 @@ function createSectionContent(section, xrayFeatures = []) {
     if (!value || value.length === 0) {
       return true;
     }
+
+    const hy2Error = checkHysteriaSupport(value);
+    if (hy2Error) return hy2Error;
 
     const validation = main.validateProxyUrl(value);
 

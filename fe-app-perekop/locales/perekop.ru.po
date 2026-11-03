@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PEREKOP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-03 13:31+0300\n"
-"PO-Revision-Date: 2026-11-03 13:31+0300\n"
+"POT-Creation-Date: 2026-11-03 16:38+0300\n"
+"PO-Revision-Date: 2026-11-03 16:38+0300\n"
 "Last-Translator: tangenx\n"
 "Language-Team: none\n"
 "Language: ru\n"
@@ -209,6 +209,9 @@ msgstr "Включить выходной сетевой интерфейс"
 msgid "Enable the mixed proxy, allowing this section to route traffic through both HTTP and SOCKS proxies"
 msgstr "Включить смешанный прокси-сервер, разрешив этому разделу маршрутизировать трафик как через HTTP, так и через SOCKS-прокси."
 
+msgid "Enable Traffic Statistics"
+msgstr ""
+
 msgid "Enter complete outbound configuration in JSON format"
 msgstr "Введите полную конфигурацию исходящего соединения в формате JSON"
 
@@ -256,6 +259,9 @@ msgstr "Глобальная проверка"
 
 msgid "HTTP error"
 msgstr "Ошибка HTTP"
+
+msgid "Hysteria2 requires Xray 26.1.13 or newer. Update Xray via install.sh --xray-latest or remove the hysteria2 link"
+msgstr ""
 
 msgid "Interface Monitoring"
 msgstr "Мониторинг интерфейса"
@@ -640,6 +646,9 @@ msgstr "Интервал между тестами подключения"
 
 msgid "The URL used to test server connectivity"
 msgstr "URL-адрес, используемый для проверки подключения к серверу"
+
+msgid "Track traffic for the dashboard. Disabling this reduces memory usage on low-memory devices"
+msgstr ""
 
 msgid "Traffic"
 msgstr "Трафик"
