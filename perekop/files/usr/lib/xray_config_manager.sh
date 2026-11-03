@@ -26,7 +26,12 @@
 # which mirrors sing-box "route.final".
 #######################################
 xray_cm_init_config() {
-    echo '{"stats":{},"log":{},"dns":{},"fakeDns":{},"inbounds":[],"outbounds":[],"routing":{"domainStrategy":"AsIs","rules":[]},"balancers":[],"policy":{"system":{"statsInboundUplink":true,"statsInboundDownlink":true,"statsOutboundUplink":true,"statsOutboundDownlink":true}},"api":{}}'
+    local enable_stats="${1:-1}"
+    if [ "$enable_stats" = "1" ]; then
+        echo '{"stats":{},"log":{},"dns":{},"fakeDns":{},"inbounds":[],"outbounds":[],"routing":{"domainStrategy":"AsIs","rules":[]},"balancers":[],"policy":{"system":{"statsInboundUplink":true,"statsInboundDownlink":true,"statsOutboundUplink":true,"statsOutboundDownlink":true}},"api":{}}'
+    else
+        echo '{"log":{},"dns":{},"fakeDns":{},"inbounds":[],"outbounds":[],"routing":{"domainStrategy":"AsIs","rules":[]},"balancers":[],"policy":{"system":{"statsInboundUplink":false,"statsInboundDownlink":false,"statsOutboundUplink":false,"statsOutboundDownlink":false}},"api":{}}'
+    fi
 }
 
 #######################################

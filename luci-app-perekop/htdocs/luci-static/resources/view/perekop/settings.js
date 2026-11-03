@@ -318,6 +318,17 @@ function createSettingsContent(section, xrayFeatures = []) {
   );
   o.default = "0";
   o.rmempty = false;
+  o = section.option(
+    form.Flag,
+    "enable_stats",
+    _("Enable Traffic Statistics"),
+    _(
+      "Track traffic for the dashboard. Disabling this reduces memory usage on low-memory devices",
+    ),
+  );
+  o.default = "1";
+  o.rmempty = false;
+
 
   o = section.option(
     form.Flag,

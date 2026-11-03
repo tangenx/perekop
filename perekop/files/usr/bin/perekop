@@ -1125,7 +1125,9 @@ xray_restore_init_memlimit() {
 
 xray_init_config() {
     local config
-    config=$(xray_cm_init_config)
+    local enable_stats
+    config_get_bool enable_stats "settings" "enable_stats" "1"
+    config=$(xray_cm_init_config "$enable_stats")
 
     mkdir -p "$TMP_LISTS_FOLDER/matchers"
     rm -f "$TMP_LISTS_FOLDER/matchers"/*
