@@ -3474,7 +3474,7 @@ function renderWikiDisclaimer(kind) {
       classNames: ["cbi-button-save"],
       text: _("Visit Wiki"),
       onClick: () => window.open(
-        "https://perekop.net/docs/troubleshooting/?utm_source=perekop",
+        "https://tangenx.github.io/perekop/troubleshooting/?utm_source=perekop",
         "_blank",
         "noopener,noreferrer"
       )
