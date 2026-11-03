@@ -43,6 +43,7 @@ function createSectionContent(section, xrayFeatures = []) {
   o.value("url", _("Connection URL"));
   o.value("selector", _("Selector"));
   o.value("urltest", _("URLTest"));
+  o.value("subscription", _("Subscription"));
   o.value("outbound", _("Outbound Config"));
   o.default = "url";
   o.depends("connection_type", "proxy");
@@ -77,6 +78,24 @@ function createSectionContent(section, xrayFeatures = []) {
     }
 
     return validation.message;
+  };
+
+  o = section.option(
+    form.Value,
+    "subscription_url",
+    _("Subscription URL"),
+    _("URL that returns a list of proxy links (base64 or plain text)"),
+  );
+  o.depends("proxy_config_type", "subscription");
+  o.rmempty = false;
+  o.validate = function (section_id, value) {
+    if (!value || value.length === 0) {
+      return true;
+    }
+    if (!/^https?:\/\//.test(value)) {
+      return _("Subscription URL must start with http:// or https://");
+    }
+    return true;
   };
 
   o = section.option(

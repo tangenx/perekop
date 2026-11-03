@@ -38,7 +38,8 @@ export async function getDashboardSections(): Promise<IGetDashboardSectionsRespo
       if (section.connection_type === 'proxy') {
         if (
           section.proxy_config_type === 'selector' ||
-          section.proxy_config_type === 'urltest'
+          section.proxy_config_type === 'urltest' ||
+          section.proxy_config_type === 'subscription'
         ) {
           const links =
             section.proxy_config_type === 'selector'

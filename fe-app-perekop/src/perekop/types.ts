@@ -94,6 +94,12 @@ export namespace Perekop {
     outbound_json: string;
   }
 
+  export interface ConfigProxySubscriptionSection {
+    connection_type: 'proxy';
+    proxy_config_type: 'subscription';
+    subscription_url: string;
+  }
+
   export interface ConfigVpnSection {
     connection_type: 'vpn';
     interface: string;
@@ -111,6 +117,7 @@ export namespace Perekop {
     | ConfigProxySelectorSection
     | ConfigProxyUrlSection
     | ConfigProxyOutboundSection
+    | ConfigProxySubscriptionSection
     | ConfigVpnSection
     | ConfigBlockSection
     | ConfigExclusionSection;

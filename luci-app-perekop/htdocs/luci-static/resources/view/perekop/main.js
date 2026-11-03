@@ -724,7 +724,7 @@ async function getDashboardSections() {
       selected
     });
     if (section.connection_type === "proxy") {
-      if (section.proxy_config_type === "selector" || section.proxy_config_type === "urltest") {
+      if (section.proxy_config_type === "selector" || section.proxy_config_type === "urltest" || section.proxy_config_type === "subscription") {
         const links = section.proxy_config_type === "selector" ? section.selector_proxy_links ?? [] : [
           ...section.urltest_proxy_links ?? [],
           ...section.urltest_fallback_links ?? []

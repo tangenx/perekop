@@ -90,16 +90,17 @@ check_requirements() {
 
 _check_outbound_section() {
     local section="$1"
-    local proxy_string interface outbound_json urltest_proxy_links
+    local proxy_string interface outbound_json urltest_proxy_links subscription_url
 
     config_get proxy_string "$section" "proxy_string"
     config_get selector_proxy_links "$section" "selector_proxy_links"
     config_get urltest_proxy_links "$section" "urltest_proxy_links"
     config_get outbound_json "$section" "outbound_json"
     config_get interface "$section" "interface"
+    config_get subscription_url "$section" "subscription_url"
 
     if [ -n "$proxy_string" ] || [ -n "$selector_proxy_links" ] || [ -n "$urltest_proxy_links" ] ||
-        [ -n "$outbound_json" ] || [ -n "$interface" ]; then
+        [ -n "$outbound_json" ] || [ -n "$interface" ] || [ -n "$subscription_url" ]; then
         section_exists=0
     fi
 }
@@ -620,6 +621,7 @@ list_update() {
 
     config_foreach import_community_subnet_lists "section"
     download_geosite
+    config_foreach import_subscription_links "section"
     config_foreach import_domains_from_remote_domain_lists "section"
     config_foreach import_subnets_from_remote_subnet_lists "section"
     config_foreach import_local_lists "section"
@@ -887,6 +889,44 @@ import_subnets_from_remote_subnet_list_handler() {
 
     nft_add_set_elements_from_file_chunked "$tmpfile" "$NFT_TABLE_NAME" "$NFT_COMMON_SET_NAME"
     mv "$tmpfile" "$TMP_LISTS_FOLDER/remote-$section-$basename.lst"
+}
+
+import_subscription_links() {
+    local section="$1"
+    local subscription_url
+    config_get subscription_url "$section" "subscription_url"
+    [ -z "$subscription_url" ] && return 0
+
+    local proxy_config_type
+    config_get proxy_config_type "$section" "proxy_config_type"
+    [ "$proxy_config_type" != "subscription" ] && return 0
+
+    log "Importing subscription links for '$section' section"
+    local tmpfile proxy_address
+    tmpfile=$(mktemp)
+    proxy_address="$(get_service_proxy_address)"
+
+    download_to_file "$subscription_url" "$tmpfile" "$proxy_address"
+    if [ $? -ne 0 ] || [ ! -s "$tmpfile" ]; then
+        log "Subscription download failed for '$section'" "error"
+        rm -f "$tmpfile"
+        return 1
+    fi
+
+    # Decode base64 if the content is not plain text
+    local decoded
+    decoded=$(mktemp)
+    if base64 -d "$tmpfile" > "$decoded" 2>/dev/null && grep -qE '^(vless|ss|trojan|socks|hysteria2|hy2)://' "$decoded" 2>/dev/null; then
+        mv "$decoded" "$tmpfile"
+    else
+        rm -f "$decoded"
+    fi
+
+    # Extract proxy links (one per line, skip empty/comments)
+    grep -E '^(vless|ss|trojan|socks|hysteria2|hy2)://' "$tmpfile" > "$TMP_LISTS_FOLDER/subscription-$section.lst" 2>/dev/null || true
+
+    rm -f "$tmpfile"
+    log "Subscription links imported for '$section'" "info"
 }
 
 import_local_lists() {
@@ -1240,7 +1280,7 @@ xray_configure_latency_socks() {
         port=$((port + 1))
         config_get proxy_config_type "$section" "proxy_config_type"
         case "$proxy_config_type" in
-        selector | urltest)
+        selector | urltest | subscription)
             balancer_tag="$(get_outbound_tag_by_section "$section")"
             ;;
         url | outbound)
@@ -1627,23 +1667,37 @@ configure_outbound_handler() {
             config_get json_outbound "$section" "outbound_json"
             config=$(xray_cf_add_json_outbound "$config" "$section" "$json_outbound")
             ;;
-        selector | urltest)
+        selector | urltest | subscription)
             local links links_var strategy interval testing_url fallback_links fallback_tag outbound_tag selector_tag
             if [ "$proxy_config_type" = "selector" ]; then
                 links_var="selector_proxy_links"
                 strategy="random"
+            elif [ "$proxy_config_type" = "subscription" ]; then
+                links_var=""
+                strategy="leastPing"
+                # Subscription links are downloaded by list_update into a file
+                local sub_file="$TMP_LISTS_FOLDER/subscription-$section.lst"
+                if [ -f "$sub_file" ]; then
+                    links=$(tr '\n' ' ' < "$sub_file")
+                fi
             else
                 links_var="urltest_proxy_links"
                 strategy="leastPing"
             fi
 
-            config_get links "$section" "$links_var"
+            if [ "$proxy_config_type" != "subscription" ]; then
+                config_get links "$section" "$links_var"
+            fi
             config_get fallback_links "$section" "urltest_fallback_links"
             config_get interval "$section" "urltest_check_interval" "3m"
             config_get testing_url "$section" "urltest_testing_url" "https://www.gstatic.com/generate_204"
 
             if [ -z "$links" ]; then
-                log "Proxy links of the $section section are not set. Aborted." "fatal"
+                if [ "$proxy_config_type" = "subscription" ]; then
+                    log "Subscription links for the $section section are not downloaded yet. Aborted." "fatal"
+                else
+                    log "Proxy links of the $section section are not set. Aborted." "fatal"
+                fi
                 exit 1
             fi
 
@@ -2615,6 +2669,13 @@ xray_api_get_proxies() {
         urltest)
             links_var="urltest_proxy_links"
             ;;
+        subscription)
+            links_var=""
+            local sub_file="$TMP_LISTS_FOLDER/subscription-$group.lst"
+            if [ -f "$sub_file" ]; then
+                links=$(tr '\n' ' ' < "$sub_file")
+            fi
+            ;;
         url | outbound)
             # A single outbound is listed as its own one-entry group, so the
             # dashboard shows it together with its latency test
@@ -2629,7 +2690,9 @@ xray_api_get_proxies() {
             ;;
         esac
 
-        config_get links "$section" "$links_var"
+        if [ -n "$links_var" ]; then
+            config_get links "$section" "$links_var"
+        fi
 
         for link in $links; do
             outbound_tag="$(get_outbound_tag_by_section "$section-$i")"
@@ -2775,11 +2838,11 @@ xray_api_test_group_delay() {
     local i=1
     if [ -n "$links_var" ]; then
         config_get links "$group" "$links_var"
-        for link in $links; do
-            tags="$tags $(get_outbound_tag_by_section "$group-$i")"
-            i=$((i + 1))
-        done
     fi
+    for link in $links; do
+        tags="$tags $(get_outbound_tag_by_section "$group-$i")"
+        i=$((i + 1))
+    done
 
     port="$(get_latency_socks_port "$group")"
     if [ -z "$port" ]; then
