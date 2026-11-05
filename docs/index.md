@@ -15,8 +15,8 @@ sh -c "$(wget -O - https://raw.githubusercontent.com/tangenx/perekop/main/instal
 
 ## Документация
 
-- [Установка](installation.md)
-- [Диагностика](troubleshooting.md)
+- [Установка, обновление и удаление](installation.md)
+- [Диагностика и устранение неисправностей](troubleshooting.md)
 - [Ограничения](limitations.md)
 
 ## Источник
