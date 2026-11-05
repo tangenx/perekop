@@ -1,0 +1,8 @@
+title: Perekop
+description: Маршрутизация трафика для OpenWrt на базе Xray
+theme: minima
+plugins:
+  - jekyll-seo-tag
+exclude:
+  - Gemfile
+  - Gemfile.lock
