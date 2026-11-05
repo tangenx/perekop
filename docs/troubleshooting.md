@@ -19,7 +19,8 @@ title: Диагностика
 - Отключите **Enable Traffic Statistics** → снижает потребление ~вдвое (~40 МБ вместо ~80)
 - Уменьшите количество proxy-ссылок
 - Уберите лишние community-списки и домены
-- GOMEMLIMIT уже установлен на 25 MiB
+- GOMEMLIMIT уже установлен на 10 MiB (значение выше вызывает OOM на роутерах с 256 МБ ОЗУ: при 25 MiB куча Xray раздувается до ~120 МБ)
+- Watchdog: каждые `xray_watchdog_interval` минут (по умолчанию 30) cron проверяет heap Xray (`xray api statssys`, fallback — VmRSS) и рестартит только сервис xray, если память достигла порога (по умолчанию 50% ОЗУ, clamp 40–80 МБ). Отключается через `xray_watchdog=0` в настройках.
 
 ## ERR_CONNECTION_CLOSED
 
