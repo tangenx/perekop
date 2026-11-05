@@ -41,6 +41,7 @@ export namespace Perekop {
   }
   export interface XrayProxyGroup {
     outbounds: string[];
+    names?: string[];
     selected: string;
     auto: string;
   }

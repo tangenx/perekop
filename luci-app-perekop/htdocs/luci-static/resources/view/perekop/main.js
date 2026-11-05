@@ -725,7 +725,10 @@ async function getDashboardSections() {
     });
     if (section.connection_type === "proxy") {
       if (section.proxy_config_type === "selector" || section.proxy_config_type === "urltest" || section.proxy_config_type === "subscription") {
-        const links = section.proxy_config_type === "selector" ? section.selector_proxy_links ?? [] : [
+        const names = proxyGroup?.names ?? [];
+        const links = section.proxy_config_type === "selector" ? section.selector_proxy_links ?? [] : section.proxy_config_type === "subscription" ? (proxyGroup?.outbounds ?? []).map(
+          (tag, index) => `${tag}:${names[index] ?? ""}#${names[index] ?? ""}`
+        ) : [
           ...section.urltest_proxy_links ?? [],
           ...section.urltest_fallback_links ?? []
         ];

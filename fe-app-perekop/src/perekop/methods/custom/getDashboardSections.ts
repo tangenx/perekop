@@ -41,13 +41,18 @@ export async function getDashboardSections(): Promise<IGetDashboardSectionsRespo
           section.proxy_config_type === 'urltest' ||
           section.proxy_config_type === 'subscription'
         ) {
+          const names = proxyGroup?.names ?? [];
           const links =
             section.proxy_config_type === 'selector'
               ? (section.selector_proxy_links ?? [])
-              : [
-                  ...(section.urltest_proxy_links ?? []),
-                  ...(section.urltest_fallback_links ?? []),
-                ];
+              : section.proxy_config_type === 'subscription'
+                ? (proxyGroup?.outbounds ?? []).map(
+                    (tag, index) => `${tag}:${names[index] ?? ''}#${names[index] ?? ''}`,
+                  )
+                : [
+                    ...(section.urltest_proxy_links ?? []),
+                    ...(section.urltest_fallback_links ?? []),
+                  ];
           const outbounds = links.map((link, index) => {
             const code = `${name}-${index + 1}-out`;
             return groupOutbound(
