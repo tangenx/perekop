@@ -33,7 +33,9 @@ XRAY_ECH_MIN_VERSION="25.7.26"
 # DNS
 XRAY_DNS_TAG="perekop-dns"
 XRAY_FAKEIP_INET4_RANGE="198.18.0.0/15"
-XRAY_FAKEIP_POOL_SIZE=65535
+# Bounded: a 65k pool can retain ~10-16 MB of live domain<->fakeIP objects
+# during short-lived-connection bursts. 4096 covers any household.
+XRAY_FAKEIP_POOL_SIZE=4096
 # Inbounds
 XRAY_TPROXY_INBOUND_TAG="tproxy-in"
 XRAY_TPROXY_INBOUND_ADDRESS="127.0.0.1"
