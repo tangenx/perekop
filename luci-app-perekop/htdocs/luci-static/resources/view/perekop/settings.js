@@ -329,6 +329,49 @@ function createSettingsContent(section, xrayFeatures = []) {
   o.default = "1";
   o.rmempty = false;
 
+  o = section.option(
+    form.Value,
+    "xray_memlimit",
+    _("Xray memory limit (MiB)"),
+    _(
+      "Soft Go heap limit (GOMEMLIMIT). Keep low on 256 MB routers: above ~10 MiB the heap can grow to ~120 MB and the kernel OOM-kills Xray. Leave empty to disable.",
+    ),
+  );
+  o.placeholder = "10";
+  o.rmempty = true;
+
+  o = section.option(
+    form.Flag,
+    "xray_watchdog",
+    _("Xray memory watchdog"),
+    _(
+      "Restart Xray when its heap exceeds the threshold. Bounds the OOM leak on low-memory devices.",
+    ),
+  );
+  o.default = "1";
+  o.rmempty = false;
+
+  o = section.option(
+    form.Value,
+    "xray_watchdog_interval",
+    _("Watchdog interval (minutes)"),
+    _("How often the watchdog checks Xray memory (5-120)."),
+  );
+  o.default = "30";
+  o.depends("xray_watchdog", "1");
+  o.rmempty = false;
+
+  o = section.option(
+    form.Value,
+    "xray_watchdog_rss_mb",
+    _("Watchdog RSS threshold (MB)"),
+    _(
+      "Restart Xray when heap/RSS reaches this size. Empty = 50% of RAM, clamped to 40-80 MB.",
+    ),
+  );
+  o.placeholder = "50";
+  o.depends("xray_watchdog", "1");
+  o.rmempty = true;
 
   o = section.option(
     form.Flag,
